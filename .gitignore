@@ -1,0 +1,6 @@
+*.hi
+*.chs.h
+XInput.hs
+*.o
+*.chi
+*.swp
