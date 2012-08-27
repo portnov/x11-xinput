@@ -5,16 +5,22 @@ module XInput where
 #include <X11/extensions/XInput2.h>
 
 import Control.Applicative
+import Data.Bits
 import Foreign.C
 import Foreign.Ptr
 import Foreign.Storable
 import Foreign.Marshal.Alloc
-import Graphics.X11
+import qualified Graphics.X11 as X11
 import Graphics.X11.Xlib.Extras
+
+genericEvent :: X11.EventType
+genericEvent = 35
+
+type Opcode = CInt
 
 data EventCookie = EventCookie {
   ecExtension :: CInt,
-  ecType      :: CInt,
+  ecType      :: EventType,
   ecCookie    :: CUInt,
   ecData      :: Ptr () }
 
@@ -24,24 +30,73 @@ data DeviceEvent = DeviceEvent {
   deDeviceId  :: CInt,
   deSourceId  :: CInt,
   deDetail    :: CInt,
-  deRoot      :: Window,
-  deEvent     :: Window,
-  deChild     :: Window,
+  deRoot      :: X11.Window,
+  deEvent     :: X11.Window,
+  deChild     :: X11.Window,
   deRootX     :: CDouble,
   deRootY     :: CDouble,
   deEventX    :: CDouble,
   deEventY    :: CDouble,
   deFlags     :: CInt }
 
+data EventType =
+    XI_DeviceChanged      --         1
+  | XI_KeyPress           --         2
+  | XI_KeyRelease         --         3
+  | XI_ButtonPress        --         4
+  | XI_ButtonRelease      --         5
+  | XI_Motion             --         6
+  | XI_Enter              --         7
+  | XI_Leave              --         8
+  | XI_FocusIn            --         9
+  | XI_FocusOut           --         10
+  | XI_HierarchyChanged   --         11
+  | XI_PropertyEvent      --         12
+  | XI_RawKeyPress        --         13
+  | XI_RawKeyRelease      --         14
+  | XI_RawButtonPress     --         15
+  | XI_RawButtonRelease   --         16
+  | XI_RawMotion          --         17
+  deriving (Eq, Show, Ord, Enum)
+
+eventType2int :: EventType -> CInt
+eventType2int et = fromIntegral $ fromEnum et + 1
+
+int2eventType :: CInt -> EventType
+int2eventType n = toEnum (fromIntegral n - 1)
+
+data EventMask =
+    XI_DeviceChangedMask    --       (1 << XI_DeviceChanged)
+  | XI_KeyPressMask         --       (1 << XI_KeyPress)
+  | XI_KeyReleaseMask       --       (1 << XI_KeyRelease)
+  | XI_ButtonPressMask      --       (1 << XI_ButtonPress)
+  | XI_ButtonReleaseMask    --       (1 << XI_ButtonRelease)
+  | XI_MotionMask           --       (1 << XI_Motion)
+  | XI_EnterMask            --       (1 << XI_Enter)
+  | XI_LeaveMask            --       (1 << XI_Leave)
+  | XI_FocusInMask          --       (1 << XI_FocusIn)
+  | XI_FocusOutMask         --       (1 << XI_FocusOut)
+  | XI_HierarchyChangedMask --       (1 << XI_HierarchyChanged)
+  | XI_PropertyEventMask    --       (1 << XI_PropertyEvent)
+  | XI_RawKeyPressMask      --       (1 << XI_RawKeyPress)
+  | XI_RawKeyReleaseMask    --       (1 << XI_RawKeyRelease)
+  | XI_RawButtonPressMask   --       (1 << XI_RawButtonPress)
+  | XI_RawButtonReleaseMask --       (1 << XI_RawButtonRelease)
+  | XI_RawMotionMask        --       (1 << XI_RawMotion)
+  deriving (Eq, Show, Ord, Enum)
+
+eventMask2int :: EventMask -> CInt
+eventMask2int em = 1 `shiftL` (fromEnum em + 1)
+
 {# pointer *XGenericEventCookie as EventCookiePtr -> EventCookie #}
 
 {# pointer *XIDeviceEvent as DeviceEventPtr -> DeviceEvent #}
 
-ptr2display :: Ptr () -> Display
-ptr2display = Display . castPtr
+ptr2display :: Ptr () -> X11.Display
+ptr2display = X11.Display . castPtr
 
-display2ptr :: Display -> Ptr ()
-display2ptr (Display ptr) = castPtr ptr
+display2ptr :: X11.Display -> Ptr ()
+display2ptr (X11.Display ptr) = castPtr ptr
 
 toBool 0 = False
 toBool 1 = True
@@ -49,10 +104,10 @@ toBool 1 = True
 peekInt x = fromIntegral <$> peek x
 
 foreign import ccall "Xinput.chs.h XQueryExtension"
-  xQueryExtension :: Display -> CString -> Ptr CInt -> Ptr CInt -> Ptr CInt -> IO CInt
+  xQueryExtension :: X11.Display -> CString -> Ptr CInt -> Ptr CInt -> Ptr CInt -> IO CInt
 
 foreign import ccall "XInput.chs.h XIQueryVersion"
-  xinputVersion :: Display -> Ptr CInt -> Ptr CInt -> IO CInt
+  xinputVersion :: X11.Display -> Ptr CInt -> Ptr CInt -> IO CInt
 
 xinputMajor, xinputMinor :: CInt
 xinputMajor = 2
@@ -60,7 +115,7 @@ xinputMinor = 0
 
 -- | Returns Nothing if XInput 2.0 is supported, or
 -- Just (major, minor) if another version is supported
-xinputCheckVersion :: Display -> IO (Maybe (Int, Int))
+xinputCheckVersion :: X11.Display -> IO (Maybe (Int, Int))
 xinputCheckVersion dpy = do
   alloca $ \majorPtr ->
     alloca $ \minorPtr -> do
@@ -73,19 +128,19 @@ xinputCheckVersion dpy = do
         then return $ Just (fromIntegral supportedMajor, fromIntegral supportedMinor)
         else return Nothing
 
-{# fun unsafe XGetEventData as getEventData {display2ptr `Display', castPtr `EventCookiePtr'} -> `Bool' #}
+{# fun unsafe XGetEventData as getEventData {display2ptr `X11.Display', castPtr `EventCookiePtr'} -> `Bool' #}
 
-{# fun unsafe XFreeEventData as freeEventData {display2ptr `Display', castPtr `EventCookiePtr'} -> `()' #}
+{# fun unsafe XFreeEventData as freeEventData {display2ptr `X11.Display', castPtr `EventCookiePtr'} -> `()' #}
 
 -- | XInput initialization result
 data XInputInitResult =
     NoXInput                -- ^ Extension is not supported at all.
   | VersionMismatch Int Int -- ^ XInput 2.0 is not supported, but other version is.
-  | InitOK Int              -- ^ XInput 2.0 is supported, return xi_opcode.
+  | InitOK Opcode           -- ^ XInput 2.0 is supported, return xi_opcode.
   deriving (Eq, Show)
 
 -- | Initialize XInput 2.0 extension.
-xinputInit :: Display -> IO XInputInitResult
+xinputInit :: X11.Display -> IO XInputInitResult
 xinputInit dpy = do
   withCString "XInputExtension" $ \xinput ->
     alloca $ \opcode -> 
@@ -97,9 +152,15 @@ xinputInit dpy = do
                  xi_opcode <- peek opcode
                  mbVer <- xinputCheckVersion dpy
                  case mbVer of
-                   Nothing  -> return $ InitOK (fromIntegral xi_opcode)
+                   Nothing  -> return $ InitOK xi_opcode
                    Just (major, minor) -> return $ VersionMismatch major minor
             else return NoXInput
+
+get_event_type :: X11.XEventPtr -> IO X11.EventType
+get_event_type ptr = fromIntegral <$> {# get XEvent->type #} ptr
+
+get_event_extension :: X11.XEventPtr -> IO CInt
+get_event_extension ptr = {# get XGenericEvent->extension #} ptr
 
 get_xcookie :: EventCookiePtr -> IO EventCookie
 get_xcookie xev = do
@@ -109,19 +170,20 @@ get_xcookie xev = do
   cdata  <- {# get XGenericEventCookie->data #}   xev
   return $ EventCookie {
              ecExtension = ext,
-             ecType   = et,
+             ecType   = int2eventType et,
              ecCookie = cookie,
              ecData   = cdata }
 
-getXGenericEventCookie :: XEventPtr -> IO EventCookie
+getXGenericEventCookie :: X11.XEventPtr -> IO EventCookie
 getXGenericEventCookie = get_xcookie . castPtr
 
-handleXCookie :: Display -> XEventPtr -> (Event -> IO a) -> (EventCookie -> IO a) -> IO a
-handleXCookie dpy xev evHandler cookieHandler = do
+handleXCookie :: X11.Display -> CInt -> X11.XEventPtr -> (Event -> IO a) -> (EventCookie -> IO a) -> IO a
+handleXCookie dpy xi_opcode xev evHandler cookieHandler = do
+  evtype <- get_event_type xev
+  ext    <- get_event_extension xev
   hasCookie <- getEventData dpy (castPtr xev)
-  result <- if hasCookie
-              then do
-                   cookieHandler =<< getXGenericEventCookie xev
+  result <- if (evtype == genericEvent) && (ext == xi_opcode) && hasCookie
+              then cookieHandler =<< getXGenericEventCookie xev
               else evHandler =<< getEvent xev
   freeEventData dpy (castPtr xev)
   return result
