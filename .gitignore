@@ -4,3 +4,4 @@ XInput.hs
 *.o
 *.chi
 *.swp
+xitest
