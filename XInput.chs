@@ -77,12 +77,14 @@ xinputCheckVersion dpy = do
 
 {# fun unsafe XFreeEventData as freeEventData {display2ptr `Display', castPtr `EventCookiePtr'} -> `()' #}
 
+-- | XInput initialization result
 data XInputInitResult =
-    NoXInput
-  | VersionMismatch Int Int
-  | InitOK Int
+    NoXInput                -- ^ Extension is not supported at all.
+  | VersionMismatch Int Int -- ^ XInput 2.0 is not supported, but other version is.
+  | InitOK Int              -- ^ XInput 2.0 is supported, return xi_opcode.
   deriving (Eq, Show)
 
+-- | Initialize XInput 2.0 extension.
 xinputInit :: Display -> IO XInputInitResult
 xinputInit dpy = do
   withCString "XInputExtension" $ \xinput ->
@@ -114,13 +116,12 @@ get_xcookie xev = do
 getXGenericEventCookie :: XEventPtr -> IO EventCookie
 getXGenericEventCookie = get_xcookie . castPtr
 
-handleXCookie :: Display -> XEventPtr -> (Event -> IO a) -> (Ptr () -> IO a) -> IO a
+handleXCookie :: Display -> XEventPtr -> (Event -> IO a) -> (EventCookie -> IO a) -> IO a
 handleXCookie dpy xev evHandler cookieHandler = do
   hasCookie <- getEventData dpy (castPtr xev)
   result <- if hasCookie
               then do
-                   cookie <- getXGenericEventCookie xev
-                   cookieHandler (ecData cookie)
+                   cookieHandler =<< getXGenericEventCookie xev
               else evHandler =<< getEvent xev
   freeEventData dpy (castPtr xev)
   return result
