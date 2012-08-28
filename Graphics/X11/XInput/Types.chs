@@ -68,7 +68,7 @@ eventType2int et = fromIntegral $ fromEnum et + 1
 int2eventType :: CInt -> EventType
 int2eventType n = toEnum (fromIntegral n - 1)
 
-data EventMask =
+data EventMaskFlag =
     XI_DeviceChangedMask    --       (1 << XI_DeviceChanged)
   | XI_KeyPressMask         --       (1 << XI_KeyPress)
   | XI_KeyReleaseMask       --       (1 << XI_KeyRelease)
@@ -88,8 +88,16 @@ data EventMask =
   | XI_RawMotionMask        --       (1 << XI_RawMotion)
   deriving (Eq, Show, Ord, Enum)
 
-eventMask2int :: EventMask -> CInt
+eventMask2int :: EventMaskFlag -> CInt
 eventMask2int em = 1 `shiftL` (fromEnum em + 1)
+
+data EventMask = EventMask {
+    emDeviceID :: DeviceID,
+    emLength :: Int,
+    emMask :: Ptr CUChar }
+  deriving (Eq, Show)
+
+{# pointer *XIEventMask as EventMaskPtr -> EventMask #}
 
 {# pointer *XGenericEventCookie as EventCookiePtr -> EventCookie #}
 
