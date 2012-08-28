@@ -108,8 +108,10 @@ deviceType2int dt = fromIntegral (fromEnum dt + 1)
 int2deviceType :: CInt -> DeviceType
 int2deviceType n = toEnum (fromIntegral n - 1)
 
+type DeviceID = CInt
+
 data DeviceInfo = DeviceInfo {
-  diID :: Int,
+  diID :: DeviceID,
   diName :: String,
   diUse :: DeviceType,
   diAttachment :: Int,
@@ -159,9 +161,33 @@ data DeviceClass =
       dcMode :: Int }
   deriving (Eq, Show)
 
+data SelectDevices =
+    XIAllDevices
+  | XIAllMasterDevices
+  | OneDevice DeviceID
+  deriving (Eq, Show, Ord)
+
+selectDevices :: SelectDevices -> CInt
+selectDevices XIAllDevices = 0
+selectDevices XIAllMasterDevices = 1
+selectDevices (OneDevice n) = n
+
+foreign import ccall "XInput.chs.h XIQueryDevice"
+  xiQueryDevice :: X11.Display -> CInt -> Ptr CInt -> IO DeviceInfoPtr
+
+queryDevice :: X11.Display -> SelectDevices -> IO [DeviceInfo]
+queryDevice dpy devs = do
+  alloca $ \nptr -> do
+    dptr <- xiQueryDevice dpy (selectDevices devs) nptr
+    n <- peek nptr
+    let sz = {# sizeof XIDeviceInfo #}
+        offsets = take (fromIntegral n) [0, sz ..]
+        dptrs = map (plusPtr dptr) offsets
+    forM dptrs peekDeviceInfo
+
 peekDeviceInfo :: DeviceInfoPtr -> IO DeviceInfo
 peekDeviceInfo ptr = do
-  id <- fromIntegral <$> {# get XIDeviceInfo->deviceid #} ptr
+  id <- {# get XIDeviceInfo->deviceid #} ptr
   namePtr <- {# get XIDeviceInfo->name #} ptr
   name <- peekCString namePtr
   use <- int2deviceType <$> {# get XIDeviceInfo->use #} ptr
