@@ -1,4 +1,4 @@
-
+{-# LANGUAGE ForeignFunctionInterface #-}
 module Graphics.X11.XInput.Foreign where
 
 #include <X11/Xlib.h>

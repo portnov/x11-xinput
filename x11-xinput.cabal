@@ -1,0 +1,24 @@
+name:                x11-xinput
+version:             0.1.0.0
+synopsis:            Haskell FFI bindings for X11 XInput library (-lXi)
+description:         Haskell FFI bindings for X11 XInput library (-lXi).
+                     Only XInput version 2.0 is supported.
+homepage:            http://redmine.iportnov.ru/projects/x11-xinput
+license:             BSD3
+license-file:        LICENSE
+author:              IlyaPortnov
+maintainer:          portnov84@rambler.ru
+-- copyright:           
+category:            Graphics
+build-type:          Simple
+cabal-version:       >=1.8
+
+library
+  exposed-modules:     Graphics.X11.XInput,
+                       Graphics.X11.XInput.Parser,
+                       Graphics.X11.XInput.Foreign,
+                       Graphics.X11.XInput.Functions,
+                       Graphics.X11.XInput.Types
+  -- other-modules:       
+  build-depends:       base ==4.5.*, X11 ==1.6.*
+  build-tools:         c2hs

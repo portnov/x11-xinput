@@ -6,4 +6,5 @@ Graphics/X11/XInput/Parser.hs
 *.o
 *.chi
 *.swp
+dist/
 xitest
