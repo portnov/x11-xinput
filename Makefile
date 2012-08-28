@@ -4,7 +4,7 @@ LIBS=-lXi
 
 all: xitest
 
-xitest: xitest.hs Graphics/X11/XInput/Types.hs Graphics/X11/XInput/Internal.hs Graphics/X11/XInput/Functions.hs
+xitest: xitest.hs Graphics/X11/XInput/Types.hs Graphics/X11/XInput/Internal.hs Graphics/X11/XInput/Functions.hs Graphics/X11/XInput/Parser.hs
 	$(GHC) --make xitest.hs $(LIBS)
 
 %.hs: %.chs

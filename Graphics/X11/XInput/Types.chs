@@ -193,62 +193,6 @@ selectDevices (OneDevice n) = n
 foreign import ccall "XInput.chs.h XIQueryDevice"
   xiQueryDevice :: X11.Display -> CInt -> Ptr CInt -> IO DeviceInfoPtr
 
-peekDeviceInfo :: DeviceInfoPtr -> IO DeviceInfo
-peekDeviceInfo ptr = do
-  id <- {# get XIDeviceInfo->deviceid #} ptr
-  namePtr <- {# get XIDeviceInfo->name #} ptr
-  name <- peekCString namePtr
-  use <- int2deviceType <$> {# get XIDeviceInfo->use #} ptr
-  att <- {# get XIDeviceInfo->attachment #} ptr
-  on <- toBool <$> {# get XIDeviceInfo->enabled #} ptr
-  ncls <- fromIntegral <$> {# get XIDeviceInfo->num_classes #} ptr
-  clsptr <- {# get XIDeviceInfo->classes #} ptr
-  classesPtrs <- peekArray ncls clsptr
-  classes <- forM classesPtrs (peekDeviceClass)
-  return $ DeviceInfo id name use att on ncls classes
-
-peekDeviceClass :: GDeviceClassPtr -> IO GDeviceClass
-peekDeviceClass ptr = do
-  tp <- (toEnum . fromIntegral) <$> {# get XIAnyClassInfo->type #} ptr
-  src <- {# get XIAnyClassInfo->sourceid #} ptr
-  cls <- case tp of
-           XIButtonClass   -> peekButtonClass ptr
-           XIKeyClass      -> peekKeyClass ptr
-           XIValuatorClass -> peekValuatorClass ptr
-  return $ GDeviceClass tp (fromIntegral src) cls
-
-peekButtonClass :: GDeviceClassPtr -> IO DeviceClass
-peekButtonClass ptr = do
-  n <- {# get XIButtonClassInfo->num_buttons #} ptr
-  labelsPtr <- {# get XIButtonClassInfo->labels #} ptr
-  labels <- peekArray (fromIntegral n) labelsPtr
-  st <- peekButtonState ptr
-  return $ ButtonClass (fromIntegral n) (map fromIntegral labels) st
-
-peekButtonState :: GDeviceClassPtr -> IO ButtonState
-peekButtonState ptr = do
-  n <- {# get XIButtonClassInfo->state.mask_len #} ptr
-  maskPtr <- {# get XIButtonClassInfo->state.mask #} ptr
-  mask <- peekCStringLen (castPtr maskPtr, fromIntegral n)
-  return $ ButtonState (fromIntegral n) mask
-
-peekKeyClass :: GDeviceClassPtr -> IO DeviceClass
-peekKeyClass ptr = do
-  n <- {# get XIKeyClassInfo->num_keycodes #} ptr
-  kptr <- {# get XIKeyClassInfo->keycodes #} ptr
-  keycodes <- peekArray (fromIntegral n) kptr
-  return $ KeyClass (fromIntegral n) (map fromIntegral keycodes)
-
-peekValuatorClass :: GDeviceClassPtr -> IO DeviceClass
-peekValuatorClass ptr = ValuatorClass 
-  <$> (fromIntegral <$> {# get XIValuatorClassInfo->number #} ptr)
-  <*> (fromIntegral <$> {# get XIValuatorClassInfo->label #} ptr)
-  <*> (realToFrac <$> {# get XIValuatorClassInfo->min #} ptr)
-  <*> (realToFrac <$> {# get XIValuatorClassInfo->max #} ptr)
-  <*> (realToFrac <$> {# get XIValuatorClassInfo->value #} ptr)
-  <*> (fromIntegral <$> {# get XIValuatorClassInfo->resolution #} ptr)
-  <*> (fromIntegral <$> {# get XIValuatorClassInfo->mode #} ptr)
-
 ptr2display :: Ptr () -> X11.Display
 ptr2display = X11.Display . castPtr
 
@@ -257,8 +201,6 @@ display2ptr (X11.Display ptr) = castPtr ptr
 
 toBool 0 = False
 toBool 1 = True
-
-peekInt x = fromIntegral <$> peek x
 
 foreign import ccall "Xinput.chs.h XQueryExtension"
   xQueryExtension :: X11.Display -> CString -> Ptr CInt -> Ptr CInt -> Ptr CInt -> IO CInt
@@ -276,41 +218,4 @@ data XInputInitResult =
   | VersionMismatch Int Int -- ^ XInput 2.0 is not supported, but other version is.
   | InitOK Opcode           -- ^ XInput 2.0 is supported, return xi_opcode.
   deriving (Eq, Show)
-
-get_event_type :: X11.XEventPtr -> IO X11.EventType
-get_event_type ptr = fromIntegral <$> {# get XEvent->type #} ptr
-
-get_event_extension :: X11.XEventPtr -> IO CInt
-get_event_extension ptr = {# get XGenericEvent->extension #} ptr
-
-get_xcookie :: EventCookiePtr -> IO EventCookie
-get_xcookie xev = do
-  ext    <- {# get XGenericEventCookie->extension #} xev
-  et     <- {# get XGenericEventCookie->evtype #} xev
-  cookie <- {# get XGenericEventCookie->cookie #} xev
-  cdata  <- {# get XGenericEventCookie->data #}   xev
-  return $ EventCookie {
-             ecExtension = ext,
-             ecType   = int2eventType et,
-             ecCookie = cookie,
-             ecData   = cdata }
-
-getXGenericEventCookie :: X11.XEventPtr -> IO EventCookie
-getXGenericEventCookie = get_xcookie . castPtr
-
-get_device_event :: DeviceEventPtr -> IO DeviceEvent
-get_device_event de = DeviceEvent 
-  <$> {# get XIDeviceEvent->extension #} de
-  <*> {# get XIDeviceEvent->type #}      de
-  <*> {# get XIDeviceEvent->deviceid #}  de
-  <*> {# get XIDeviceEvent->sourceid #}  de
-  <*> {# get XIDeviceEvent->detail #}    de
-  <*> (fromIntegral <$> ({# get XIDeviceEvent->root #}  de))
-  <*> (fromIntegral <$> ({# get XIDeviceEvent->event #} de))
-  <*> (fromIntegral <$> ({# get XIDeviceEvent->child #} de))
-  <*> {# get XIDeviceEvent->root_x #}    de
-  <*> {# get XIDeviceEvent->root_y #}    de
-  <*> {# get XIDeviceEvent->event_x #}   de
-  <*> {# get XIDeviceEvent->event_y #}   de
-  <*> {# get XIDeviceEvent->flags #}     de
 

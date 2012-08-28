@@ -2,6 +2,7 @@
 *.chs.h
 Graphics/X11/XInput/Types.hs
 Graphics/X11/XInput/Internal.hs
+Graphics/X11/XInput/Parser.hs
 *.o
 *.chi
 *.swp

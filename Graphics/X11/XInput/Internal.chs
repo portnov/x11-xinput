@@ -13,6 +13,7 @@ import Foreign.Marshal.Array
 import qualified Graphics.X11 as X11
 
 import Graphics.X11.XInput.Types
+import Graphics.X11.XInput.Parser
 
 queryDevice :: X11.Display -> SelectDevices -> IO [DeviceInfo]
 queryDevice dpy devs = do
@@ -22,5 +23,5 @@ queryDevice dpy devs = do
     let sz = {# sizeof XIDeviceInfo #}
         offsets = take (fromIntegral n) [0, sz ..]
         dptrs = map (plusPtr dptr) offsets
-    forM dptrs peekDeviceInfo
+    forM dptrs peekStruct
 
