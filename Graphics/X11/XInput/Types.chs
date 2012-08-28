@@ -1,5 +1,5 @@
 
-module XInput where
+module Graphics.X11.XInput.Types where
 
 #include <X11/Xlib.h>
 #include <X11/extensions/XInput2.h>

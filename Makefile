@@ -4,14 +4,15 @@ LIBS=-lXi
 
 all: xitest
 
-xitest: xitest.hs XInput.hs
+xitest: xitest.hs Graphics/X11/XInput/Types.hs
 	$(GHC) --make xitest.hs $(LIBS)
 
-XInput.hs: XInput.chs
+%.hs: %.chs
 	$(C2HS) $<
 
 clean:
-	rm -f *.chs.h
-	rm -f *.hi *.o
-	rm -f *.chi
+	find . -name \*.chs.h -delete
+	find . -name \*.hi -delete
+	find . -name \*.o -delete
+	find . -name \*.chi -delete
 	rm -f xitest

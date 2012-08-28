@@ -1,8 +1,7 @@
 
 import Control.Monad
 import Graphics.X11
-
-import XInput
+import Graphics.X11.XInput
 
 withDisplay :: String -> (Display -> IO a) -> IO ()
 withDisplay str action = do
