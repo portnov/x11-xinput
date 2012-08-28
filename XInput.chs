@@ -12,6 +12,7 @@ import Foreign.Ptr
 import Foreign.Storable
 import Foreign.Marshal.Alloc
 import Foreign.Marshal.Array
+import Text.Printf
 import qualified Graphics.X11 as X11
 import Graphics.X11.Xlib.Extras
 
@@ -114,11 +115,19 @@ data DeviceInfo = DeviceInfo {
   diID :: DeviceID,
   diName :: String,
   diUse :: DeviceType,
-  diAttachment :: Int,
+  diAttachment :: DeviceID,
   diEnabled :: Bool,
   diNumClasses :: Int,
-  dcClasses :: [GDeviceClass]}
-  deriving (Eq, Show)
+  diClasses :: [GDeviceClass]}
+  deriving (Eq)
+
+instance Show DeviceInfo where
+  show x = printf "<%s #%s: %s, attached to #%s, classes: %s>"
+                  (show $ diUse x)
+                  (show $ diID x)
+                  (diName x)
+                  (show $ diAttachment x)
+                  (show $ diClasses x)
 
 {# pointer *XIDeviceInfo as DeviceInfoPtr -> DeviceInfo #}
 
@@ -132,7 +141,10 @@ data GDeviceClass = GDeviceClass {
   dcType :: DeviceClassType,
   dcSourceId :: Int,
   dcSpecific :: DeviceClass }
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show GDeviceClass where
+  show t = printf "<%s [%s]>" (show $ dcType t) (show $ dcSpecific t)
 
 {# pointer *XIAnyClassInfo as GDeviceClassPtr -> GDeviceClass #}
 
@@ -159,7 +171,13 @@ data DeviceClass =
       dcValue :: Double,
       dcResolution :: Int,
       dcMode :: Int }
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show DeviceClass where
+  show (ButtonClass n _ _) = printf "Buttons: %s" (show n)
+  show (KeyClass n _) = printf "Keys: %s keycodes" (show n)
+  show (ValuatorClass _ _ min max val _ _) =
+      printf "Valuator: %.2f..%.2f, value %.2f" min max val
 
 data SelectDevices =
     XIAllDevices
@@ -191,7 +209,7 @@ peekDeviceInfo ptr = do
   namePtr <- {# get XIDeviceInfo->name #} ptr
   name <- peekCString namePtr
   use <- int2deviceType <$> {# get XIDeviceInfo->use #} ptr
-  att <- fromIntegral <$> {# get XIDeviceInfo->attachment #} ptr
+  att <- {# get XIDeviceInfo->attachment #} ptr
   on <- toBool <$> {# get XIDeviceInfo->enabled #} ptr
   ncls <- fromIntegral <$> {# get XIDeviceInfo->num_classes #} ptr
   clsptr <- {# get XIDeviceInfo->classes #} ptr
