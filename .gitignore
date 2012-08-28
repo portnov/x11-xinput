@@ -1,6 +1,7 @@
 *.hi
 *.chs.h
 Graphics/X11/XInput/Types.hs
+Graphics/X11/XInput/Internal.hs
 *.o
 *.chi
 *.swp

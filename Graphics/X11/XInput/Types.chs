@@ -193,16 +193,6 @@ selectDevices (OneDevice n) = n
 foreign import ccall "XInput.chs.h XIQueryDevice"
   xiQueryDevice :: X11.Display -> CInt -> Ptr CInt -> IO DeviceInfoPtr
 
-queryDevice :: X11.Display -> SelectDevices -> IO [DeviceInfo]
-queryDevice dpy devs = do
-  alloca $ \nptr -> do
-    dptr <- xiQueryDevice dpy (selectDevices devs) nptr
-    n <- peek nptr
-    let sz = {# sizeof XIDeviceInfo #}
-        offsets = take (fromIntegral n) [0, sz ..]
-        dptrs = map (plusPtr dptr) offsets
-    forM dptrs peekDeviceInfo
-
 peekDeviceInfo :: DeviceInfoPtr -> IO DeviceInfo
 peekDeviceInfo ptr = do
   id <- {# get XIDeviceInfo->deviceid #} ptr
@@ -276,25 +266,6 @@ foreign import ccall "Xinput.chs.h XQueryExtension"
 foreign import ccall "XInput.chs.h XIQueryVersion"
   xinputVersion :: X11.Display -> Ptr CInt -> Ptr CInt -> IO CInt
 
-xinputMajor, xinputMinor :: CInt
-xinputMajor = 2
-xinputMinor = 0
-
--- | Returns Nothing if XInput 2.0 is supported, or
--- Just (major, minor) if another version is supported
-xinputCheckVersion :: X11.Display -> IO (Maybe (Int, Int))
-xinputCheckVersion dpy = do
-  alloca $ \majorPtr ->
-    alloca $ \minorPtr -> do
-      poke majorPtr xinputMajor
-      poke minorPtr xinputMinor
-      result <- xinputVersion dpy majorPtr minorPtr
-      supportedMajor <- peek majorPtr
-      supportedMinor <- peek minorPtr
-      if result == 1
-        then return $ Just (fromIntegral supportedMajor, fromIntegral supportedMinor)
-        else return Nothing
-
 {# fun unsafe XGetEventData as getEventData {display2ptr `X11.Display', castPtr `EventCookiePtr'} -> `Bool' #}
 
 {# fun unsafe XFreeEventData as freeEventData {display2ptr `X11.Display', castPtr `EventCookiePtr'} -> `()' #}
@@ -305,23 +276,6 @@ data XInputInitResult =
   | VersionMismatch Int Int -- ^ XInput 2.0 is not supported, but other version is.
   | InitOK Opcode           -- ^ XInput 2.0 is supported, return xi_opcode.
   deriving (Eq, Show)
-
--- | Initialize XInput 2.0 extension.
-xinputInit :: X11.Display -> IO XInputInitResult
-xinputInit dpy = do
-  withCString "XInputExtension" $ \xinput ->
-    alloca $ \opcode -> 
-      alloca $ \event ->
-        alloca $ \error -> do
-          result <- xQueryExtension dpy xinput opcode event error
-          if result /= 0
-            then do
-                 xi_opcode <- peek opcode
-                 mbVer <- xinputCheckVersion dpy
-                 case mbVer of
-                   Nothing  -> return $ InitOK xi_opcode
-                   Just (major, minor) -> return $ VersionMismatch major minor
-            else return NoXInput
 
 get_event_type :: X11.XEventPtr -> IO X11.EventType
 get_event_type ptr = fromIntegral <$> {# get XEvent->type #} ptr
@@ -343,17 +297,6 @@ get_xcookie xev = do
 
 getXGenericEventCookie :: X11.XEventPtr -> IO EventCookie
 getXGenericEventCookie = get_xcookie . castPtr
-
-handleXCookie :: X11.Display -> CInt -> X11.XEventPtr -> (Event -> IO a) -> (EventCookie -> IO a) -> IO a
-handleXCookie dpy xi_opcode xev evHandler cookieHandler = do
-  evtype <- get_event_type xev
-  ext    <- get_event_extension xev
-  hasCookie <- getEventData dpy (castPtr xev)
-  result <- if (evtype == genericEvent) && (ext == xi_opcode) && hasCookie
-              then cookieHandler =<< getXGenericEventCookie xev
-              else evHandler =<< getEvent xev
-  freeEventData dpy (castPtr xev)
-  return result
 
 get_device_event :: DeviceEventPtr -> IO DeviceEvent
 get_device_event de = DeviceEvent 
