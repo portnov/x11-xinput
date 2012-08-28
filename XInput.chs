@@ -5,6 +5,7 @@ module XInput where
 #include <X11/extensions/XInput2.h>
 
 import Control.Applicative
+import Control.Monad
 import Data.Bits
 import Foreign.C
 import Foreign.Ptr
@@ -93,15 +94,31 @@ eventMask2int em = 1 `shiftL` (fromEnum em + 1)
 
 {# pointer *XIDeviceEvent as DeviceEventPtr -> DeviceEvent #}
 
+data DeviceType =
+    XIMasterPointer   --                    1
+  | XIMasterKeyboard  --                    2
+  | XISlavePointer    --                    3
+  | XISlaveKeyboard   --                    4
+  | XIFloatingSlave   --                    5
+  deriving (Eq, Show, Ord, Enum)
+
+deviceType2int :: DeviceType -> CInt
+deviceType2int dt = fromIntegral (fromEnum dt + 1)
+
+int2deviceType :: CInt -> DeviceType
+int2deviceType n = toEnum (fromIntegral n - 1)
+
 data DeviceInfo = DeviceInfo {
   diID :: Int,
   diName :: String,
-  diUse :: Int,
+  diUse :: DeviceType,
   diAttachment :: Int,
   diEnabled :: Bool,
   diNumClasses :: Int,
   dcClasses :: [GDeviceClass]}
   deriving (Eq, Show)
+
+{# pointer *XIDeviceInfo as DeviceInfoPtr -> DeviceInfo #}
 
 data DeviceClassType =
     XIKeyClass
@@ -142,7 +159,19 @@ data DeviceClass =
       dcMode :: Int }
   deriving (Eq, Show)
 
-{# pointer *XIDeviceInfo as DeviceInfoPtr -> DeviceInfo #}
+peekDeviceInfo :: DeviceInfoPtr -> IO DeviceInfo
+peekDeviceInfo ptr = do
+  id <- fromIntegral <$> {# get XIDeviceInfo->deviceid #} ptr
+  namePtr <- {# get XIDeviceInfo->name #} ptr
+  name <- peekCString namePtr
+  use <- int2deviceType <$> {# get XIDeviceInfo->use #} ptr
+  att <- fromIntegral <$> {# get XIDeviceInfo->attachment #} ptr
+  on <- toBool <$> {# get XIDeviceInfo->enabled #} ptr
+  ncls <- fromIntegral <$> {# get XIDeviceInfo->num_classes #} ptr
+  clsptr <- {# get XIDeviceInfo->classes #} ptr
+  classesPtrs <- peekArray ncls clsptr
+  classes <- forM classesPtrs (peekDeviceClass)
+  return $ DeviceInfo id name use att on ncls classes
 
 peekDeviceClass :: GDeviceClassPtr -> IO GDeviceClass
 peekDeviceClass ptr = do
