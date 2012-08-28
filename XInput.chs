@@ -10,6 +10,7 @@ import Foreign.C
 import Foreign.Ptr
 import Foreign.Storable
 import Foreign.Marshal.Alloc
+import Foreign.Marshal.Array
 import qualified Graphics.X11 as X11
 import Graphics.X11.Xlib.Extras
 
@@ -91,6 +92,91 @@ eventMask2int em = 1 `shiftL` (fromEnum em + 1)
 {# pointer *XGenericEventCookie as EventCookiePtr -> EventCookie #}
 
 {# pointer *XIDeviceEvent as DeviceEventPtr -> DeviceEvent #}
+
+data DeviceInfo = DeviceInfo {
+  diID :: Int,
+  diName :: String,
+  diUse :: Int,
+  diAttachment :: Int,
+  diEnabled :: Bool,
+  diNumClasses :: Int,
+  dcClasses :: [GDeviceClass]}
+  deriving (Eq, Show)
+
+data DeviceClassType =
+    XIKeyClass
+  | XIButtonClass
+  | XIValuatorClass
+  deriving (Eq, Show, Ord, Enum)
+
+data GDeviceClass = GDeviceClass {
+  dcType :: DeviceClassType,
+  dcSourceId :: Int,
+  dcSpecific :: DeviceClass }
+  deriving (Eq, Show)
+
+{# pointer *XIAnyClassInfo as GDeviceClassPtr -> GDeviceClass #}
+
+data ButtonState = ButtonState {
+    bsMaskLen :: Int,
+    bsMask :: String }
+  deriving (Eq, Show)
+
+{# pointer *XIButtonState as ButtonStatePtr -> ButtonState #}
+
+data DeviceClass =
+    ButtonClass {
+      dcNumButtons :: Int,
+      dcLabels :: [X11.Atom],
+      dcState :: ButtonState }
+  | KeyClass {
+      dcNumKeycodes :: Int,
+      dcKeycodes :: [Int] }
+  | ValuatorClass {
+      dcNumber :: Int,
+      dcLabel :: X11.Atom,
+      dcMin :: Double,
+      dcMax :: Double,
+      dcValue :: Double,
+      dcResolution :: Int,
+      dcMode :: Int }
+  deriving (Eq, Show)
+
+{# pointer *XIDeviceInfo as DeviceInfoPtr -> DeviceInfo #}
+
+peekDeviceClass :: GDeviceClassPtr -> IO GDeviceClass
+peekDeviceClass ptr = do
+  tp <- (toEnum . fromIntegral) <$> {# get XIAnyClassInfo->type #} ptr
+  src <- {# get XIAnyClassInfo->sourceid #} ptr
+  cls <- case tp of
+           XIButtonClass   -> peekButtonClass ptr
+           XIKeyClass      -> peekKeyClass ptr
+           XIValuatorClass -> peekValuatorClass ptr
+  return $ GDeviceClass tp (fromIntegral src) cls
+
+peekButtonClass :: GDeviceClassPtr -> IO DeviceClass
+peekButtonClass ptr = do
+  n <- {# get XIButtonClassInfo->num_buttons #} ptr
+  labelsPtr <- {# get XIButtonClassInfo->labels #} ptr
+  labels <- peekArray (fromIntegral n) labelsPtr
+  st <- peekButtonState ptr
+  return $ ButtonClass (fromIntegral n) (map fromIntegral labels) st
+
+peekButtonState :: GDeviceClassPtr -> IO ButtonState
+peekButtonState ptr = do
+  n <- {# get XIButtonClassInfo->state.mask_len #} ptr
+  maskPtr <- {# get XIButtonClassInfo->state.mask #} ptr
+  mask <- peekCStringLen (castPtr maskPtr, fromIntegral n)
+  return $ ButtonState (fromIntegral n) mask
+
+peekKeyClass :: GDeviceClassPtr -> IO DeviceClass
+peekKeyClass ptr = do
+  n <- {# get XIKeyClassInfo->num_keycodes #} ptr
+  kptr <- {# get XIKeyClassInfo->keycodes #} ptr
+  keycodes <- peekArray (fromIntegral n) kptr
+  return $ KeyClass (fromIntegral n) (map fromIntegral keycodes)
+
+peekValuatorClass = undefined
 
 ptr2display :: Ptr () -> X11.Display
 ptr2display = X11.Display . castPtr
