@@ -231,7 +231,15 @@ peekKeyClass ptr = do
   keycodes <- peekArray (fromIntegral n) kptr
   return $ KeyClass (fromIntegral n) (map fromIntegral keycodes)
 
-peekValuatorClass = undefined
+peekValuatorClass :: GDeviceClassPtr -> IO DeviceClass
+peekValuatorClass ptr = ValuatorClass 
+  <$> (fromIntegral <$> {# get XIValuatorClassInfo->number #} ptr)
+  <*> (fromIntegral <$> {# get XIValuatorClassInfo->label #} ptr)
+  <*> (realToFrac <$> {# get XIValuatorClassInfo->min #} ptr)
+  <*> (realToFrac <$> {# get XIValuatorClassInfo->max #} ptr)
+  <*> (realToFrac <$> {# get XIValuatorClassInfo->value #} ptr)
+  <*> (fromIntegral <$> {# get XIValuatorClassInfo->resolution #} ptr)
+  <*> (fromIntegral <$> {# get XIValuatorClassInfo->mode #} ptr)
 
 ptr2display :: Ptr () -> X11.Display
 ptr2display = X11.Display . castPtr

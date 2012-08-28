@@ -1,4 +1,5 @@
 
+import Control.Monad
 import Graphics.X11
 
 import XInput
@@ -13,3 +14,5 @@ main = do
   withDisplay ":0" $ \dpy -> do
     xinput <- xinputInit dpy
     print xinput
+    devices <- queryDevice dpy XIAllDevices 
+    forM_ devices print
