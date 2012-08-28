@@ -11,6 +11,7 @@ import qualified Graphics.X11 as X11
 import Graphics.X11.Xlib.Extras
 
 import Graphics.X11.XInput.Types
+import Graphics.X11.XInput.Foreign
 import Graphics.X11.XInput.Parser
 
 -- | Initialize XInput 2.0 extension.

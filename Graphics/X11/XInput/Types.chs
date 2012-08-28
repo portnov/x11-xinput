@@ -190,9 +190,6 @@ selectDevices XIAllDevices = 0
 selectDevices XIAllMasterDevices = 1
 selectDevices (OneDevice n) = n
 
-foreign import ccall "XInput.chs.h XIQueryDevice"
-  xiQueryDevice :: X11.Display -> CInt -> Ptr CInt -> IO DeviceInfoPtr
-
 ptr2display :: Ptr () -> X11.Display
 ptr2display = X11.Display . castPtr
 
@@ -201,16 +198,6 @@ display2ptr (X11.Display ptr) = castPtr ptr
 
 toBool 0 = False
 toBool 1 = True
-
-foreign import ccall "Xinput.chs.h XQueryExtension"
-  xQueryExtension :: X11.Display -> CString -> Ptr CInt -> Ptr CInt -> Ptr CInt -> IO CInt
-
-foreign import ccall "XInput.chs.h XIQueryVersion"
-  xinputVersion :: X11.Display -> Ptr CInt -> Ptr CInt -> IO CInt
-
-{# fun unsafe XGetEventData as getEventData {display2ptr `X11.Display', castPtr `EventCookiePtr'} -> `Bool' #}
-
-{# fun unsafe XFreeEventData as freeEventData {display2ptr `X11.Display', castPtr `EventCookiePtr'} -> `()' #}
 
 -- | XInput initialization result
 data XInputInitResult =
