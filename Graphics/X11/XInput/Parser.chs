@@ -161,5 +161,5 @@ peekPointerEvent XI_Enter e = EnterLeaveEvent
 
 peekPointerEvent XI_Leave e = peekPointerEvent XI_Enter e
 
-peekPointerEvent _ _ = return UnsupportedPointerEvent
+peekPointerEvent t _ = return (UnsupportedPointerEvent t)
 

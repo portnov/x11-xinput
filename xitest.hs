@@ -1,6 +1,7 @@
 
 import Control.Monad
 import Control.Concurrent (threadDelay)
+import Data.Bits
 import Graphics.X11
 import Graphics.X11.XInput
 
@@ -20,7 +21,7 @@ main = do
         background = whitePixel dpy dflt
     rootw <- rootWindow dpy dflt
     win <- createSimpleWindow dpy rootw 0 0 100 100 1 border background
-    selectInput dpy win exposureMask
+    selectInput dpy win (exposureMask .|. buttonPressMask .|. buttonReleaseMask)
     setEventMask dpy win [XI_Enter, XI_Leave, XI_ButtonPress, XI_ButtonRelease]
     setTextProperty dpy win "Hello World" wM_NAME
     mapWindow dpy win
@@ -29,7 +30,9 @@ main = do
       forever $ do
         nextEvent dpy eptr
         handleXCookie dpy xi_opcode eptr evHandler cookieHandler
+        sync dpy False
 
-evHandler e = print "Event"
+evHandler e =
+  putStrLn $ "X11 event: " ++ show e
 
 cookieHandler e = print e

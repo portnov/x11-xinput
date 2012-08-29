@@ -66,7 +66,7 @@ data EventSpecific =
       dceReason :: CInt,
       dceNumClasses :: Int,
       dceClasses :: [GDeviceClass] }
-  | UnsupportedEvent
+  | UnsupportedEvent CInt
   deriving (Eq)
 
 instance Show EventSpecific where
@@ -87,14 +87,14 @@ instance Show EventSpecific where
              (show dceReason)
              (show dceClasses)
 
-  show UnsupportedEvent = "unsupported event"
+  show (UnsupportedEvent e) = "unsupported event #" ++ show e
 
 data PointerEvent =
     EnterLeaveEvent {
       eeMode :: CInt,
       eeFocus :: Bool,
       eeSameScreen :: Bool }
-  | UnsupportedPointerEvent
+  | UnsupportedPointerEvent EventType
   deriving (Eq, Show)
 
 data EventType =
