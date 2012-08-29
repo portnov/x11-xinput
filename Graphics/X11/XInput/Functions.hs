@@ -8,7 +8,7 @@ import Foreign.Storable
 import Foreign.Marshal.Alloc
 import Foreign.Marshal.Array
 import qualified Graphics.X11 as X11
-import Graphics.X11.Xlib.Extras
+import qualified Graphics.X11.Xlib.Extras as E
 
 import Graphics.X11.XInput.Types
 import Graphics.X11.XInput.Foreign
@@ -50,14 +50,14 @@ xinputCheckVersion dpy = do
         then return $ Just (fromIntegral supportedMajor, fromIntegral supportedMinor)
         else return Nothing
 
-handleXCookie :: X11.Display -> CInt -> X11.XEventPtr -> (Event -> IO a) -> (EventCookie -> IO a) -> IO a
+handleXCookie :: X11.Display -> CInt -> X11.XEventPtr -> (E.Event -> IO a) -> (EventCookie -> IO a) -> IO a
 handleXCookie dpy xi_opcode xev evHandler cookieHandler = do
   evtype <- get_event_type xev
   ext    <- get_event_extension xev
   hasCookie <- getEventData dpy (castPtr xev)
   result <- if (evtype == genericEvent) && (ext == xi_opcode) && hasCookie
               then cookieHandler =<< getXGenericEventCookie xev
-              else evHandler =<< getEvent xev
+              else evHandler =<< E.getEvent xev
   freeEventData dpy (castPtr xev)
   return result
 

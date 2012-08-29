@@ -15,7 +15,7 @@ import Foreign.Marshal.Alloc
 import Foreign.Marshal.Array
 import Text.Printf
 import qualified Graphics.X11 as X11
-import Graphics.X11.Xlib.Extras
+import qualified Graphics.X11.Xlib.Extras as E
 
 import Graphics.X11.XInput.Types
 
@@ -112,20 +112,28 @@ instance Struct EventCookie where
 getXGenericEventCookie :: X11.XEventPtr -> IO EventCookie
 getXGenericEventCookie = peekStruct . castPtr
 
-instance Struct DeviceEvent where
-  type Pointer DeviceEvent = DeviceEventPtr
+instance Struct Event where
+  type Pointer Event = EventPtr
 
-  peekStruct de = DeviceEvent 
-    <$> {# get XIDeviceEvent->extension #} de
-    <*> {# get XIDeviceEvent->type #}      de
-    <*> {# get XIDeviceEvent->deviceid #}  de
-    <*> {# get XIDeviceEvent->sourceid #}  de
-    <*> {# get XIDeviceEvent->detail #}    de
-    <*> (fromIntegral <$> ({# get XIDeviceEvent->root #}  de))
-    <*> (fromIntegral <$> ({# get XIDeviceEvent->event #} de))
-    <*> (fromIntegral <$> ({# get XIDeviceEvent->child #} de))
-    <*> {# get XIDeviceEvent->root_x #}    de
-    <*> {# get XIDeviceEvent->root_y #}    de
-    <*> {# get XIDeviceEvent->event_x #}   de
-    <*> {# get XIDeviceEvent->event_y #}   de
-    <*> {# get XIDeviceEvent->flags #}     de
+  peekStruct de = do 
+    se <- toBool <$> {# get XIEvent->send_event #} de
+    dpy <- ptr2display <$> {# get XIEvent->display #} de
+    ext <- {# get XIDeviceEvent->extension #} de
+    evt <- int2eventType <$> {# get XIEvent->evtype #} de
+    dev <- {# get XIDeviceEvent->deviceid #}  de
+    src <- {# get XIDeviceEvent->sourceid #}  de
+    spec <- peekEventSpecific evt de
+    return $ Event se dpy ext evt dev src spec
+
+
+peekEventSpecific evt de = undefined
+
+--     <*> {# get XIDeviceEvent->detail #}    de
+--     <*> (fromIntegral <$> ({# get XIDeviceEvent->root #}  de))
+--     <*> (fromIntegral <$> ({# get XIDeviceEvent->event #} de))
+--     <*> (fromIntegral <$> ({# get XIDeviceEvent->child #} de))
+--     <*> {# get XIDeviceEvent->root_x #}    de
+--     <*> {# get XIDeviceEvent->root_y #}    de
+--     <*> {# get XIDeviceEvent->event_x #}   de
+--     <*> {# get XIDeviceEvent->event_y #}   de
+--     <*> {# get XIDeviceEvent->flags #}     de

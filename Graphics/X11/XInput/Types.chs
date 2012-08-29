@@ -14,7 +14,7 @@ import Foreign.Marshal.Alloc
 import Foreign.Marshal.Array
 import Text.Printf
 import qualified Graphics.X11 as X11
-import Graphics.X11.Xlib.Extras
+import qualified Graphics.X11.Xlib.Extras as E
 
 genericEvent :: X11.EventType
 genericEvent = 35
@@ -28,20 +28,44 @@ data EventCookie = EventCookie {
   ecData      :: Ptr () }
   deriving (Eq, Show)
 
-data DeviceEvent = DeviceEvent {
-  deExtension :: CInt,
-  deType      :: CInt,
-  deDeviceId  :: CInt,
-  deSourceId  :: CInt,
-  deDetail    :: CInt,
-  deRoot      :: X11.Window,
-  deEvent     :: X11.Window,
-  deChild     :: X11.Window,
-  deRootX     :: CDouble,
-  deRootY     :: CDouble,
-  deEventX    :: CDouble,
-  deEventY    :: CDouble,
-  deFlags     :: CInt }
+data Event = Event {
+  eSendEvent :: Bool,
+  eDisplay   :: X11.Display,
+  eExtension :: Opcode,
+  eType      :: EventType,
+  eDeviceId  :: DeviceID,
+  eSourceId  :: CInt,
+  eSpecific  :: EventSpecific }
+  deriving (Eq, Show)
+
+data EventSpecific =
+    GPointerEvent {
+      peSourceId  :: CInt,
+      peDetail    :: CInt,
+      peRoot      :: X11.Window,
+      peEvent     :: X11.Window,
+      peChild     :: X11.Window,
+      peRootX     :: CDouble,
+      peRootY     :: CDouble,
+      peEventX    :: CDouble,
+      peEventY    :: CDouble,
+      peSpecific  :: PointerEvent }
+  | PropertyEvent {
+      peProperty :: X11.Atom,
+      peWhat :: CInt }
+  | DeviceChangedEvent {
+      dceReason :: CInt,
+      dceNumClasses :: Int,
+      dceClasses :: [DeviceClass] }
+  | UnsupportedEvent
+  deriving (Eq, Show)
+
+data PointerEvent =
+    EnterLeaveEvent {
+      eeMode :: CInt,
+      eeFocus :: Bool,
+      eeSameScreen :: Bool }
+  | UnsupportedPointerEvent
   deriving (Eq, Show)
 
 data EventType =
@@ -67,7 +91,7 @@ data EventType =
 eventType2int :: Num a => EventType -> a
 eventType2int et = fromIntegral $ fromEnum et + 1
 
-int2eventType :: CInt -> EventType
+int2eventType :: Integral a => a -> EventType
 int2eventType n = toEnum (fromIntegral n - 1)
 
 data EventMaskFlag =
@@ -103,7 +127,7 @@ data EventMask = EventMask {
 
 {# pointer *XGenericEventCookie as EventCookiePtr -> EventCookie #}
 
-{# pointer *XIDeviceEvent as DeviceEventPtr -> DeviceEvent #}
+{# pointer *XIEvent as EventPtr -> Event #}
 
 data DeviceType =
     XIMasterPointer   --                    1
