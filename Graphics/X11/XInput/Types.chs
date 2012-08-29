@@ -1,4 +1,4 @@
-
+{-# LANGUAGE RecordWildCards #-}
 module Graphics.X11.XInput.Types where
 
 #include <X11/Xlib.h>
@@ -25,8 +25,13 @@ data EventCookie = EventCookie {
   ecExtension :: CInt,
   ecType      :: EventType,
   ecCookie    :: CUInt,
-  ecData      :: Ptr () }
-  deriving (Eq, Show)
+  ecData      :: Event }
+  deriving (Eq)
+
+instance Show EventCookie where
+  show e = printf "<%s: %s>"
+                  (show $ ecType e)
+                  (show $ ecData e)
 
 data Event = Event {
   eSendEvent :: Bool,
@@ -34,9 +39,13 @@ data Event = Event {
   eExtension :: Opcode,
   eType      :: EventType,
   eDeviceId  :: DeviceID,
-  eSourceId  :: CInt,
   eSpecific  :: EventSpecific }
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show Event where
+  show e = printf "Event [device #%s] (%s)"
+                  (show $ eDeviceId e)
+                  (show $ eSpecific e)
 
 data EventSpecific =
     GPointerEvent {
@@ -56,9 +65,29 @@ data EventSpecific =
   | DeviceChangedEvent {
       dceReason :: CInt,
       dceNumClasses :: Int,
-      dceClasses :: [DeviceClass] }
+      dceClasses :: [GDeviceClass] }
   | UnsupportedEvent
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show EventSpecific where
+  show (GPointerEvent {..}) =
+      printf "from %s, at (%.2f, %.2f): %s"
+             (show peSourceId)
+             (realToFrac peRootX :: Double)
+             (realToFrac peRootY :: Double)
+             (show peSpecific)
+
+  show (PropertyEvent {..}) =
+      printf "property %s: %s"
+             (show peProperty)
+             (show peWhat)
+
+  show (DeviceChangedEvent {..}) =
+      printf "device change [reason %s]: classes %s"
+             (show dceReason)
+             (show dceClasses)
+
+  show UnsupportedEvent = "unsupported event"
 
 data PointerEvent =
     EnterLeaveEvent {

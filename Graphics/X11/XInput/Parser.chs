@@ -23,6 +23,12 @@ class Struct a where
   type Pointer a
   peekStruct :: Pointer a -> IO a
 
+peekClasses :: Int -> Ptr a -> IO [GDeviceClass]
+peekClasses n ptr = do
+  let ptr' = castPtr ptr :: Ptr GDeviceClassPtr
+  classesPtrs <- peekArray (fromIntegral n) ptr'
+  forM classesPtrs (peekStruct . castPtr)
+
 instance Struct DeviceInfo where
   type Pointer DeviceInfo = DeviceInfoPtr
 
@@ -35,8 +41,7 @@ instance Struct DeviceInfo where
     on <- toBool <$> {# get XIDeviceInfo->enabled #} ptr
     ncls <- fromIntegral <$> {# get XIDeviceInfo->num_classes #} ptr
     clsptr <- {# get XIDeviceInfo->classes #} ptr
-    classesPtrs <- peekArray ncls clsptr
-    classes <- forM classesPtrs (peekStruct . castPtr)
+    classes <- peekClasses ncls clsptr
     return $ DeviceInfo id name use att on ncls classes
 
 instance Struct GDeviceClass where
@@ -102,7 +107,8 @@ instance Struct EventCookie where
     ext    <- {# get XGenericEventCookie->extension #} xev
     et     <- {# get XGenericEventCookie->evtype #} xev
     cookie <- {# get XGenericEventCookie->cookie #} xev
-    cdata  <- {# get XGenericEventCookie->data #}   xev
+    dptr  <- {# get XGenericEventCookie->data #}   xev
+    cdata <- peekStruct (castPtr dptr)
     return $ EventCookie {
                ecExtension = ext,
                ecType   = int2eventType et,
@@ -121,19 +127,39 @@ instance Struct Event where
     ext <- {# get XIDeviceEvent->extension #} de
     evt <- int2eventType <$> {# get XIEvent->evtype #} de
     dev <- {# get XIDeviceEvent->deviceid #}  de
-    src <- {# get XIDeviceEvent->sourceid #}  de
     spec <- peekEventSpecific evt de
-    return $ Event se dpy ext evt dev src spec
+    return $ Event se dpy ext evt dev spec
 
 
-peekEventSpecific evt de = undefined
+peekEventSpecific XI_PropertyEvent e = PropertyEvent
+  <$> (fromIntegral <$> {# get XIPropertyEvent->property #} e)
+  <*> {# get XIPropertyEvent->what #} e
 
---     <*> {# get XIDeviceEvent->detail #}    de
---     <*> (fromIntegral <$> ({# get XIDeviceEvent->root #}  de))
---     <*> (fromIntegral <$> ({# get XIDeviceEvent->event #} de))
---     <*> (fromIntegral <$> ({# get XIDeviceEvent->child #} de))
---     <*> {# get XIDeviceEvent->root_x #}    de
---     <*> {# get XIDeviceEvent->root_y #}    de
---     <*> {# get XIDeviceEvent->event_x #}   de
---     <*> {# get XIDeviceEvent->event_y #}   de
---     <*> {# get XIDeviceEvent->flags #}     de
+peekEventSpecific XI_DeviceChanged e = do
+  reason <- {# get XIDeviceChangedEvent->reason #} e
+  ncls   <- (fromIntegral <$> {# get XIDeviceChangedEvent->num_classes #} e)
+  clsPtr <- {# get XIDeviceChangedEvent->classes #} e
+  classes <- peekClasses ncls clsPtr
+  return $ DeviceChangedEvent reason ncls classes
+
+peekEventSpecific t e = GPointerEvent
+  <$> {# get XIDeviceEvent->sourceid #} e
+  <*> {# get XIDeviceEvent->detail #}   e
+  <*> (fromIntegral <$> {# get XIDeviceEvent->root #}  e)
+  <*> (fromIntegral <$> {# get XIDeviceEvent->event #} e)
+  <*> (fromIntegral <$> {# get XIDeviceEvent->child #} e)
+  <*> {# get XIDeviceEvent->root_x #}  e
+  <*> {# get XIDeviceEvent->root_y #}  e
+  <*> {# get XIDeviceEvent->event_x #} e
+  <*> {# get XIDeviceEvent->event_y #} e
+  <*> peekPointerEvent t e
+
+peekPointerEvent XI_Enter e = EnterLeaveEvent
+  <$> {# get XIEnterEvent->mode #} e
+  <*> (toBool <$> {# get XIEnterEvent->focus #} e)
+  <*> (toBool <$> {# get XIEnterEvent->same_screen #} e)
+
+peekPointerEvent XI_Leave e = peekPointerEvent XI_Enter e
+
+peekPointerEvent _ _ = return UnsupportedPointerEvent
+
