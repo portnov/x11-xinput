@@ -45,9 +45,10 @@ addMask :: Ptr CUChar -> EventType -> IO ()
 addMask ptr t = do
   let event = eventType2int t
       offset = fromIntegral $ event `shiftR` 3
-      mask  = (1 :: CInt) `shiftR` (fromIntegral $ event .&. 7)
-  value <- peekByteOff ptr offset
-  pokeByteOff ptr offset (value .|. mask)
+      mask  = (1 `shiftL` (event .&. 7)) :: CUChar
+  value <- peekByteOff ptr offset :: IO CUChar
+  let newValue = value .|. mask
+  pokeByteOff ptr offset newValue
 
 setEventMask :: X11.Display -> X11.Window -> [EventType] -> IO ()
 setEventMask dpy win list = do
@@ -59,5 +60,4 @@ setEventMask dpy win list = do
       forM list $ addMask mask
       {# set XIEventMask.mask #}     maskptr mask
       selectEvents dpy win maskptr 1
-
 

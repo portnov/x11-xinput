@@ -64,7 +64,7 @@ data EventType =
   | XI_RawMotion          --         17
   deriving (Eq, Show, Ord, Enum)
 
-eventType2int :: EventType -> CInt
+eventType2int :: Num a => EventType -> a
 eventType2int et = fromIntegral $ fromEnum et + 1
 
 int2eventType :: CInt -> EventType
