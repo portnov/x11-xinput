@@ -26,6 +26,7 @@ data EventCookie = EventCookie {
   ecType      :: EventType,
   ecCookie    :: CUInt,
   ecData      :: Ptr () }
+  deriving (Eq, Show)
 
 data DeviceEvent = DeviceEvent {
   deExtension :: CInt,
@@ -41,6 +42,7 @@ data DeviceEvent = DeviceEvent {
   deEventX    :: CDouble,
   deEventY    :: CDouble,
   deFlags     :: CInt }
+  deriving (Eq, Show)
 
 data EventType =
     XI_DeviceChanged      --         1

@@ -12,8 +12,7 @@ withDisplay str action = do
 
 main = do
   withDisplay ":0" $ \dpy -> do
-    xinput <- xinputInit dpy
-    print xinput
+    InitOK xi_opcode <- xinputInit dpy
     devices <- queryDevice dpy XIAllDevices 
     forM_ devices print
     let dflt = defaultScreen dpy
@@ -21,7 +20,16 @@ main = do
         background = whitePixel dpy dflt
     rootw <- rootWindow dpy dflt
     win <- createSimpleWindow dpy rootw 0 0 100 100 1 border background
+    selectInput dpy win exposureMask
+    setEventMask dpy win [XI_Enter, XI_Leave, XI_ButtonPress, XI_ButtonRelease]
     setTextProperty dpy win "Hello World" wM_NAME
     mapWindow dpy win
     sync dpy False
-    threadDelay (10 * 1000000)
+    allocaXEvent $ \eptr ->
+      forever $ do
+        nextEvent dpy eptr
+        handleXCookie dpy xi_opcode eptr evHandler cookieHandler
+
+evHandler e = print "Event"
+
+cookieHandler e = print e
