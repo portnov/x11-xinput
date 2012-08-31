@@ -26,3 +26,4 @@ library
                        mtl ==2.1.*,
                        X11 ==1.6.*
   build-tools:         c2hs
+  extra-libraries:     "Xi"
