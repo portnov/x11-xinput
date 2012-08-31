@@ -237,10 +237,10 @@ data DeviceClass =
   deriving (Eq)
 
 instance Show DeviceClass where
-  show (ButtonClass n _ _) = printf "Buttons: %s" (show n)
-  show (KeyClass n _) = printf "Keys: %s keycodes" (show n)
-  show (ValuatorClass _ _ min max val _ _) =
-      printf "Valuator: %.2f..%.2f, value %.2f" min max val
+  show (ButtonClass n _ _) = printf "%s buttons" (show n)
+  show (KeyClass n _) = printf "%s keycodes" (show n)
+  show (ValuatorClass _ _ min max _ _ _) =
+      printf "%.2f..%.2f" min max
 
 data SelectDevices =
     XIAllDevices
