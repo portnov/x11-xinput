@@ -1,4 +1,5 @@
 
+import Control.Applicative
 import Control.Monad
 import Control.Concurrent (threadDelay)
 import Data.Bits
@@ -14,8 +15,8 @@ withDisplay str action = do
 main = do
   withDisplay ":0" $ \dpy -> do
     InitOK xi_opcode <- xinputInit dpy
-    devices <- queryDevice dpy XIAllDevices 
-    forM_ devices print
+    devices <- buildDevicesMap <$> queryDevice dpy XIAllDevices 
+    putStrLn (showDevicesMap devices)
     let dflt = defaultScreen dpy
         border = blackPixel dpy dflt
         background = whitePixel dpy dflt
