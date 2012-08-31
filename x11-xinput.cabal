@@ -18,6 +18,7 @@ library
                        Graphics.X11.XInput.Parser,
                        Graphics.X11.XInput.Foreign,
                        Graphics.X11.XInput.Functions,
+                       Graphics.X11.XInput.Devices,
                        Graphics.X11.XInput.Types
   -- other-modules:       
   build-depends:       base ==4.5.*,
