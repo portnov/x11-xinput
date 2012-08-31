@@ -16,12 +16,16 @@ import Text.Printf
 import qualified Graphics.X11 as X11
 import qualified Graphics.X11.Xlib.Extras as E
 
+instance Eq E.Event where
+  x == y = E.ev_serial x == E.ev_serial y
+
 genericEvent :: X11.EventType
 genericEvent = 35
 
 type Opcode = CInt
 
 data EventCookie = EventCookie {
+  ecEvent     :: E.Event,
   ecExtension :: CInt,
   ecType      :: EventType,
   ecCookie    :: CUInt,

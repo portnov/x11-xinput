@@ -104,12 +104,14 @@ instance Struct EventCookie where
   type Pointer EventCookie = EventCookiePtr
 
   peekStruct xev = do
+    ev     <- E.getEvent (castPtr xev)
     ext    <- {# get XGenericEventCookie->extension #} xev
     et     <- {# get XGenericEventCookie->evtype #} xev
     cookie <- {# get XGenericEventCookie->cookie #} xev
     dptr  <- {# get XGenericEventCookie->data #}   xev
     cdata <- peekStruct (castPtr dptr)
     return $ EventCookie {
+               ecEvent  = ev,
                ecExtension = ext,
                ecType   = int2eventType et,
                ecCookie = cookie,

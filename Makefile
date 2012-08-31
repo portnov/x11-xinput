@@ -10,7 +10,7 @@ MODULES=Graphics/X11/XInput/Types.hs \
 all: xitest
 
 xitest: xitest.hs $(MODULES)
-	$(GHC) --make xitest.hs $(LIBS)
+	$(GHC) --make xitest.hs -hide-package monads-tf $(LIBS)
 
 %.hs: %.chs
 	$(C2HS) $<
