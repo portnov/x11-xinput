@@ -2,6 +2,7 @@
 module Graphics.X11.XInput.Functions where
 
 import Control.Applicative
+import Control.Monad.Trans
 import Foreign.C
 import Foreign.Ptr
 import Foreign.Storable
@@ -50,14 +51,14 @@ xinputCheckVersion dpy = do
         then return $ Just (fromIntegral supportedMajor, fromIntegral supportedMinor)
         else return Nothing
 
-handleXCookie :: X11.Display -> CInt -> X11.XEventPtr -> (E.Event -> IO a) -> (EventCookie -> IO a) -> IO a
+handleXCookie :: (MonadIO m) => X11.Display -> CInt -> X11.XEventPtr -> (E.Event -> m a) -> (EventCookie -> m a) -> m a
 handleXCookie dpy xi_opcode xev evHandler cookieHandler = do
-  evtype <- get_event_type xev
-  ext    <- get_event_extension xev
-  hasCookie <- getEventData dpy (castPtr xev)
+  evtype <- liftIO $ get_event_type xev
+  ext    <- liftIO $ get_event_extension xev
+  hasCookie <- liftIO $ getEventData dpy (castPtr xev)
   result <- if (evtype == genericEvent) && (ext == xi_opcode) && hasCookie
-              then cookieHandler =<< getXGenericEventCookie xev
-              else evHandler =<< E.getEvent xev
-  freeEventData dpy (castPtr xev)
+              then cookieHandler =<< (liftIO $ getXGenericEventCookie xev)
+              else evHandler =<< (liftIO $ E.getEvent xev)
+  liftIO $ freeEventData dpy (castPtr xev)
   return result
 
