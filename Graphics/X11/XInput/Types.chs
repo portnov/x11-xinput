@@ -6,6 +6,7 @@ module Graphics.X11.XInput.Types where
 
 import Control.Applicative
 import Control.Monad
+import qualified Data.Map as M
 import Data.Bits
 import Foreign.C
 import Foreign.Ptr
@@ -75,8 +76,9 @@ data EventSpecific =
 
 instance Show EventSpecific where
   show (GPointerEvent {..}) =
-      printf "from %s, at (%.2f, %.2f): %s"
+      printf "from %s [%s], at (%.2f, %.2f): %s"
              (show peSourceId)
+             (show peDetail)
              (realToFrac peRootX :: Double)
              (realToFrac peRootY :: Double)
              (show peSpecific)
@@ -161,8 +163,7 @@ eventMask2int em = 1 `shiftL` (fromEnum em + 1)
 
 data EventMask = EventMask {
     emDeviceID :: DeviceID,
-    emLength :: Int,
-    emMask :: Ptr CUChar }
+    emMask :: [Int] }
   deriving (Eq, Show)
 
 {# pointer *XIEventMask as EventMaskPtr -> EventMask #}
@@ -224,9 +225,10 @@ instance Show GDeviceClass where
 
 {# pointer *XIAnyClassInfo as GDeviceClassPtr -> GDeviceClass #}
 
+type Mask = [CUChar]
+
 data ButtonState = ButtonState {
-    bsMaskLen :: Int,
-    bsMask :: [CUChar] }
+    bsMask :: [Int] }
   deriving (Eq, Show)
 
 {# pointer *XIButtonState as ButtonStatePtr -> ButtonState #}
@@ -242,11 +244,7 @@ data ModifierState = ModifierState {
 
 type GroupState = ModifierState
 
-data ValuatorState = ValuatorState {
-  vsMaskLen :: Int,
-  vsMask :: [CUChar],
-  vsValues :: [Double] }
-  deriving (Eq, Show)
+type ValuatorState = M.Map Int Double
 
 {# pointer *XIValuatorState as ValuatorStatePtr -> ValuatorState #}
 

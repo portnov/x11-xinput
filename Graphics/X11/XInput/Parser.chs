@@ -7,6 +7,7 @@ module Graphics.X11.XInput.Parser where
 
 import Control.Applicative
 import Control.Monad
+import qualified Data.Map as M
 import Data.Bits
 import Foreign.C
 import Foreign.Ptr
@@ -28,6 +29,24 @@ peekClasses n ptr = do
   let ptr' = castPtr ptr :: Ptr GDeviceClassPtr
   classesPtrs <- peekArray (fromIntegral n) ptr'
   forM classesPtrs (peekStruct . castPtr)
+
+checkByte :: CUChar -> [Int]
+checkByte x = [i | i <- [0..7], x .&. (1 `shiftL` i) /= 0]
+
+parseMask :: Mask -> [Int]
+parseMask [] = []
+parseMask [x] = checkByte x
+parseMask list =
+    let x  = last list
+        xs = init list
+    in  map (+ 8) (checkByte x) ++ parseMask xs
+
+peekMask :: (Ptr a -> IO CInt) -> (Ptr a -> IO (Ptr CUChar)) -> Ptr a -> IO [Int]
+peekMask getLength getMask ptr = do
+  len <- getLength ptr
+  maskPtr <- getMask ptr
+  mask <- peekArray (fromIntegral len) maskPtr
+  return $ parseMask mask
 
 instance Struct DeviceInfo where
   type Pointer DeviceInfo = DeviceInfoPtr
@@ -59,11 +78,10 @@ instance Struct GDeviceClass where
 instance Struct ButtonState where
   type Pointer ButtonState = GDeviceClassPtr
 
-  peekStruct ptr = do
-    n <- {# get XIButtonClassInfo->state.mask_len #} ptr
-    maskPtr <- {# get XIButtonClassInfo->state.mask #} ptr
-    mask <- peekArray (fromIntegral n) maskPtr
-    return $ ButtonState (fromIntegral n) mask
+  peekStruct ptr = ButtonState
+    <$> peekMask ({# get XIButtonClassInfo->state.mask_len #})
+                 ({# get XIButtonClassInfo->state.mask #})
+                 ptr
 
 peekButtonClass :: GDeviceClassPtr -> IO DeviceClass
 peekButtonClass ptr = do
@@ -160,11 +178,10 @@ peekPointerEvent XI_Enter e = EnterLeaveEvent
   <$> {# get XIEnterEvent->mode #} e
   <*> (toBool <$> {# get XIEnterEvent->focus #} e)
   <*> (toBool <$> {# get XIEnterEvent->same_screen #} e)
-  <*> (do
-        n <- {# get XIEnterEvent->buttons.mask_len #} e
-        maskPtr <- {# get XIEnterEvent->buttons.mask #} e
-        mask <- peekArray (fromIntegral n) maskPtr
-        return $ ButtonState (fromIntegral n) mask)
+  <*> (ButtonState <$>
+        (peekMask ({# get XIEnterEvent->buttons.mask_len #})
+                  ({# get XIEnterEvent->buttons.mask #})
+                  e ) )
   <*> (ModifierState
         <$> (fromIntegral <$> {# get XIEnterEvent->mods.base #}      e)
         <*> (fromIntegral <$> {# get XIEnterEvent->mods.latched #}   e)
@@ -181,18 +198,18 @@ peekPointerEvent XI_Leave e = peekPointerEvent XI_Enter e
 peekPointerEvent t e = DeviceEvent
   <$> return t
   <*> {# get XIDeviceEvent->flags #} e
+  <*> (ButtonState <$>
+        (peekMask ({# get XIDeviceEvent->buttons.mask_len #})
+                  ({# get XIDeviceEvent->buttons.mask #})
+                  e ) )
   <*> (do
-        n <- {# get XIDeviceEvent->buttons.mask_len #} e
-        maskPtr <- {# get XIDeviceEvent->buttons.mask #} e
-        mask <- peekArray (fromIntegral n) maskPtr
-        return $ ButtonState (fromIntegral n) mask)
-  <*> (do
-        n <- {# get XIDeviceEvent->valuators.mask_len #} e
-        maskPtr <- {# get XIDeviceEvent->valuators.mask #} e
-        mask <- peekArray (fromIntegral n) maskPtr
+        mask <- peekMask ({# get XIDeviceEvent->valuators.mask_len #})
+                         ({# get XIDeviceEvent->valuators.mask #})
+                         e
         valuesPtr <- {# get XIDeviceEvent->valuators.values #} e
-        values <- peekArray (fromIntegral n) valuesPtr :: IO [CDouble]
-        return $ ValuatorState (fromIntegral n) mask (map realToFrac values) )
+        values <- peekArray (length mask) valuesPtr :: IO [CDouble]
+        let values' = map realToFrac values :: [Double]
+        return $ M.fromList $ zip mask values' )
   <*> (ModifierState
         <$> (fromIntegral <$> {# get XIDeviceEvent->mods.base #}      e)
         <*> (fromIntegral <$> {# get XIDeviceEvent->mods.latched #}   e)
