@@ -76,7 +76,8 @@ data EventSpecific =
 
 eventButton :: Event -> Maybe Int
 eventButton (Event {..})
-  | (eType `elem` [XI_ButtonPress, XI_ButtonRelease]) =
+  | (eType `elem` [XI_ButtonPress, XI_ButtonRelease,
+                   XI_KeyPress, XI_KeyRelease]) =
         case eSpecific of
           GPointerEvent {peDetail = n} -> Just n
           _                            -> Nothing
