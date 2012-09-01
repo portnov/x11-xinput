@@ -128,7 +128,7 @@ data PointerEvent =
 
 eventKeyMask :: Event -> Maybe X11.KeyMask
 eventKeyMask (Event {eSpecific = GPointerEvent {peSpecific = e}}) =
-  Just $ fromIntegral $ msEffective $ peMods e
+  Just $ fromIntegral $ msBase $ peMods e
 eventKeyMask _ = Nothing
 
 data EventType =
