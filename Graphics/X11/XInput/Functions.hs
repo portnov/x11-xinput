@@ -62,3 +62,4 @@ handleXCookie dpy xi_opcode xev evHandler cookieHandler = do
   liftIO $ freeEventData dpy (castPtr xev)
   return result
 
+-- eventButton :: EventCookie -> Maybe

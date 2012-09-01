@@ -62,7 +62,7 @@ instance Struct ButtonState where
   peekStruct ptr = do
     n <- {# get XIButtonClassInfo->state.mask_len #} ptr
     maskPtr <- {# get XIButtonClassInfo->state.mask #} ptr
-    mask <- peekCStringLen (castPtr maskPtr, fromIntegral n)
+    mask <- peekArray (fromIntegral n) maskPtr
     return $ ButtonState (fromIntegral n) mask
 
 peekButtonClass :: GDeviceClassPtr -> IO DeviceClass
@@ -160,8 +160,48 @@ peekPointerEvent XI_Enter e = EnterLeaveEvent
   <$> {# get XIEnterEvent->mode #} e
   <*> (toBool <$> {# get XIEnterEvent->focus #} e)
   <*> (toBool <$> {# get XIEnterEvent->same_screen #} e)
+  <*> (do
+        n <- {# get XIEnterEvent->buttons.mask_len #} e
+        maskPtr <- {# get XIEnterEvent->buttons.mask #} e
+        mask <- peekArray (fromIntegral n) maskPtr
+        return $ ButtonState (fromIntegral n) mask)
+  <*> (ModifierState
+        <$> (fromIntegral <$> {# get XIEnterEvent->mods.base #}      e)
+        <*> (fromIntegral <$> {# get XIEnterEvent->mods.latched #}   e)
+        <*> (fromIntegral <$> {# get XIEnterEvent->mods.locked #}    e)
+        <*> (fromIntegral <$> {# get XIEnterEvent->mods.effective #} e))
+  <*> (ModifierState
+        <$> (fromIntegral <$> {# get XIEnterEvent->group.base #}      e)
+        <*> (fromIntegral <$> {# get XIEnterEvent->group.latched #}   e)
+        <*> (fromIntegral <$> {# get XIEnterEvent->group.locked #}    e)
+        <*> (fromIntegral <$> {# get XIEnterEvent->group.effective #} e))
 
 peekPointerEvent XI_Leave e = peekPointerEvent XI_Enter e
 
-peekPointerEvent t _ = return (UnsupportedPointerEvent t)
+peekPointerEvent t e = DeviceEvent
+  <$> return t
+  <*> {# get XIDeviceEvent->flags #} e
+  <*> (do
+        n <- {# get XIDeviceEvent->buttons.mask_len #} e
+        maskPtr <- {# get XIDeviceEvent->buttons.mask #} e
+        mask <- peekArray (fromIntegral n) maskPtr
+        return $ ButtonState (fromIntegral n) mask)
+  <*> (do
+        n <- {# get XIDeviceEvent->valuators.mask_len #} e
+        maskPtr <- {# get XIDeviceEvent->valuators.mask #} e
+        mask <- peekArray (fromIntegral n) maskPtr
+        valuesPtr <- {# get XIDeviceEvent->valuators.values #} e
+        values <- peekArray (fromIntegral n) valuesPtr :: IO [CDouble]
+        return $ ValuatorState (fromIntegral n) mask (map realToFrac values) )
+  <*> (ModifierState
+        <$> (fromIntegral <$> {# get XIDeviceEvent->mods.base #}      e)
+        <*> (fromIntegral <$> {# get XIDeviceEvent->mods.latched #}   e)
+        <*> (fromIntegral <$> {# get XIDeviceEvent->mods.locked #}    e)
+        <*> (fromIntegral <$> {# get XIDeviceEvent->mods.effective #} e))
+  <*> (ModifierState
+        <$> (fromIntegral <$> {# get XIDeviceEvent->group.base #}      e)
+        <*> (fromIntegral <$> {# get XIDeviceEvent->group.latched #}   e)
+        <*> (fromIntegral <$> {# get XIDeviceEvent->group.locked #}    e)
+        <*> (fromIntegral <$> {# get XIDeviceEvent->group.effective #} e))
+
 

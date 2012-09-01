@@ -97,8 +97,17 @@ data PointerEvent =
     EnterLeaveEvent {
       eeMode :: CInt,
       eeFocus :: Bool,
-      eeSameScreen :: Bool }
-  | UnsupportedPointerEvent EventType
+      eeSameScreen :: Bool,
+      eeButtons :: ButtonState,
+      eeMods :: ModifierState,
+      eeGroup :: GroupState }
+  | DeviceEvent {
+      deType :: EventType,
+      deFlags :: CInt,
+      deButtons :: ButtonState,
+      deValuators :: ValuatorState,
+      deMods :: ModifierState,
+      deGroup :: GroupState }
   deriving (Eq, Show)
 
 data EventType =
@@ -217,10 +226,29 @@ instance Show GDeviceClass where
 
 data ButtonState = ButtonState {
     bsMaskLen :: Int,
-    bsMask :: String }
+    bsMask :: [CUChar] }
   deriving (Eq, Show)
 
 {# pointer *XIButtonState as ButtonStatePtr -> ButtonState #}
+
+data ModifierState = ModifierState {
+  msBase :: Int,
+  msLatched :: Int,
+  msLocked :: Int,
+  msEffective :: Int }
+  deriving (Eq, Show)
+
+{# pointer *XIModifierState as ModifierStatePtr -> ModifierState #}
+
+type GroupState = ModifierState
+
+data ValuatorState = ValuatorState {
+  vsMaskLen :: Int,
+  vsMask :: [CUChar],
+  vsValues :: [Double] }
+  deriving (Eq, Show)
+
+{# pointer *XIValuatorState as ValuatorStatePtr -> ValuatorState #}
 
 data DeviceClass =
     ButtonClass {
