@@ -23,7 +23,9 @@ main = do
     rootw <- rootWindow dpy dflt
     win <- createSimpleWindow dpy rootw 0 0 100 100 1 border background
     selectInput dpy win (exposureMask .|. buttonPressMask .|. buttonReleaseMask)
-    setEventMask dpy win [XI_Enter, XI_Leave, XI_ButtonPress, XI_ButtonRelease]
+    setEventMask dpy win [XI_Enter, XI_Leave,
+                          XI_ButtonPress, XI_ButtonRelease,
+                          XI_KeyPress, XI_KeyRelease]
     setTextProperty dpy win "Hello World" wM_NAME
     mapWindow dpy win
     sync dpy False
