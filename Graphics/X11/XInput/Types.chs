@@ -55,7 +55,7 @@ instance Show Event where
 data EventSpecific =
     GPointerEvent {
       peSourceId  :: CInt,
-      peDetail    :: CInt,
+      peDetail    :: Int,
       peRoot      :: X11.Window,
       peEvent     :: X11.Window,
       peChild     :: X11.Window,
@@ -73,6 +73,20 @@ data EventSpecific =
       dceClasses :: [GDeviceClass] }
   | UnsupportedEvent CInt
   deriving (Eq)
+
+eventButton :: Event -> Maybe Int
+eventButton (Event {..})
+  | (eType `elem` [XI_ButtonPress, XI_ButtonRelease]) =
+        case eSpecific of
+          GPointerEvent {peDetail = n} -> Just n
+          _                            -> Nothing
+  | otherwise = Nothing
+
+eventWindow :: Event -> Maybe X11.Window
+eventWindow e =
+  case eSpecific e of
+    GPointerEvent {peEvent = w} -> Just w
+    _                           -> Nothing
 
 instance Show EventSpecific where
   show (GPointerEvent {..}) =

@@ -164,10 +164,10 @@ peekEventSpecific XI_DeviceChanged e = do
 
 peekEventSpecific t e = GPointerEvent
   <$> {# get XIDeviceEvent->sourceid #} e
-  <*> {# get XIDeviceEvent->detail #}   e
-  <*> (fromIntegral <$> {# get XIDeviceEvent->root #}  e)
-  <*> (fromIntegral <$> {# get XIDeviceEvent->event #} e)
-  <*> (fromIntegral <$> {# get XIDeviceEvent->child #} e)
+  <*> (fromIntegral <$> {# get XIDeviceEvent->detail #} e)
+  <*> (fromIntegral <$> {# get XIDeviceEvent->root #}   e)
+  <*> (fromIntegral <$> {# get XIDeviceEvent->event #}  e)
+  <*> (fromIntegral <$> {# get XIDeviceEvent->child #}  e)
   <*> {# get XIDeviceEvent->root_x #}  e
   <*> {# get XIDeviceEvent->root_y #}  e
   <*> {# get XIDeviceEvent->event_x #} e
