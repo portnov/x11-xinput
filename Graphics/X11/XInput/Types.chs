@@ -114,17 +114,22 @@ data PointerEvent =
       eeMode :: CInt,
       eeFocus :: Bool,
       eeSameScreen :: Bool,
-      eeButtons :: ButtonState,
-      eeMods :: ModifierState,
-      eeGroup :: GroupState }
+      peButtons :: ButtonState,
+      peMods :: ModifierState,
+      peGroup :: GroupState }
   | DeviceEvent {
       deType :: EventType,
       deFlags :: CInt,
-      deButtons :: ButtonState,
+      peButtons :: ButtonState,
       deValuators :: ValuatorState,
-      deMods :: ModifierState,
-      deGroup :: GroupState }
+      peMods :: ModifierState,
+      peGroup :: GroupState }
   deriving (Eq, Show)
+
+eventKeyMask :: Event -> Maybe X11.KeyMask
+eventKeyMask (Event {eSpecific = GPointerEvent {peSpecific = e}}) =
+  Just $ fromIntegral $ msEffective $ peMods e
+eventKeyMask _ = Nothing
 
 data EventType =
     XI_DeviceChanged      --         1

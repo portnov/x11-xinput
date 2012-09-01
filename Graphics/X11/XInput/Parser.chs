@@ -48,6 +48,9 @@ peekMask getLength getMask ptr = do
   mask <- peekArray (fromIntegral len) maskPtr
   return $ parseMask mask
 
+packMask :: [Int] -> X11.KeyMask
+packMask list = foldr (.|.) 0 $ map (1 `shiftL`) list
+
 instance Struct DeviceInfo where
   type Pointer DeviceInfo = DeviceInfoPtr
 
