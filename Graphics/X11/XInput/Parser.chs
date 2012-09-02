@@ -64,7 +64,7 @@ instance Struct DeviceInfo where
     ncls <- fromIntegral <$> {# get XIDeviceInfo->num_classes #} ptr
     clsptr <- {# get XIDeviceInfo->classes #} ptr
     classes <- peekClasses ncls clsptr
-    return $ DeviceInfo id name use att on ncls classes
+    return $ DeviceInfo id name use att on classes
 
 instance Struct GDeviceClass where
   type Pointer GDeviceClass = GDeviceClassPtr
@@ -118,7 +118,7 @@ instance Struct Int where
 get_event_type :: X11.XEventPtr -> IO X11.EventType
 get_event_type ptr = fromIntegral <$> {# get XEvent->type #} ptr
 
-get_event_extension :: X11.XEventPtr -> IO CInt
+get_event_extension :: X11.XEventPtr -> IO Opcode
 get_event_extension ptr = {# get XGenericEvent->extension #} ptr
 
 instance Struct EventCookie where
@@ -163,7 +163,7 @@ peekEventSpecific XI_DeviceChanged e = do
   ncls   <- (fromIntegral <$> {# get XIDeviceChangedEvent->num_classes #} e)
   clsPtr <- {# get XIDeviceChangedEvent->classes #} e
   classes <- peekClasses ncls clsPtr
-  return $ DeviceChangedEvent reason ncls classes
+  return $ DeviceChangedEvent reason classes
 
 peekEventSpecific t e = GPointerEvent
   <$> {# get XIDeviceEvent->sourceid #} e

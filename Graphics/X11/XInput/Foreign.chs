@@ -1,5 +1,13 @@
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
-module Graphics.X11.XInput.Foreign where
+module Graphics.X11.XInput.Foreign
+  (queryDevice,
+   setEventMask,
+   getEventData,
+   freeEventData,
+   xiQueryDevice,
+   xQueryExtension,
+   xinputVersion
+  ) where
 
 #include <X11/Xlib.h>
 #include <X11/extensions/XInput2.h>
@@ -16,7 +24,10 @@ import qualified Graphics.X11 as X11
 import Graphics.X11.XInput.Types
 import Graphics.X11.XInput.Parser
 
-queryDevice :: X11.Display -> SelectDevices -> IO [DeviceInfo]
+-- | Query list of devices
+queryDevice :: X11.Display
+            -> SelectDevices   -- ^ Which devices to list
+            -> IO [DeviceInfo]
 queryDevice dpy devs = do
   alloca $ \nptr -> do
     dptr <- xiQueryDevice dpy (selectDevices devs) nptr
@@ -50,7 +61,11 @@ addMask ptr t = do
   let newValue = value .|. mask
   pokeByteOff ptr offset newValue
 
-setEventMask :: X11.Display -> X11.Window -> [EventType] -> IO ()
+-- | Select XInput events.
+setEventMask :: X11.Display
+             -> X11.Window
+             -> [EventType] -- ^ List of events to listen
+             -> IO ()
 setEventMask dpy win list = do
   let len = (eventType2int XI_RawMotion + 7) `shiftR` 3
   allocaBytes (fromIntegral len) $ \(maskptr :: EventMaskPtr) -> do

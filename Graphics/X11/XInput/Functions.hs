@@ -1,5 +1,12 @@
-
-module Graphics.X11.XInput.Functions where
+{-# LANGUAGE RecordWildCards #-}
+module Graphics.X11.XInput.Functions
+  (xinputInit,
+   xinputCheckVersion,
+   handleXCookie,
+   eventButton,
+   eventWindow,
+   eventKeyMask
+  ) where
 
 import Control.Applicative
 import Control.Monad.Trans
@@ -51,7 +58,13 @@ xinputCheckVersion dpy = do
         then return $ Just (fromIntegral supportedMajor, fromIntegral supportedMinor)
         else return Nothing
 
-handleXCookie :: (MonadIO m) => X11.Display -> CInt -> X11.XEventPtr -> (E.Event -> m a) -> (EventCookie -> m a) -> m a
+-- | Handle usual X11 event or cookie event.
+handleXCookie :: (MonadIO m) => X11.Display
+                             -> Opcode               -- ^ Extension identifier (one got from xinputInit)
+                             -> X11.XEventPtr        -- ^ Pointer to X11 event
+                             -> (E.Event -> m a)     -- ^ Handler for usual X11 event
+                             -> (EventCookie -> m a) -- ^ Handler for X11 cookie event
+                             -> m a
 handleXCookie dpy xi_opcode xev evHandler cookieHandler = do
   evtype <- liftIO $ get_event_type xev
   ext    <- liftIO $ get_event_extension xev
@@ -62,4 +75,29 @@ handleXCookie dpy xi_opcode xev evHandler cookieHandler = do
   liftIO $ freeEventData dpy (castPtr xev)
   return result
 
--- eventButton :: EventCookie -> Maybe
+-- | Shortcut to get button number or keycode
+-- from keyboard or mouse event. Returns Nothing
+-- if this is not mouse or keyboard event.
+eventButton :: Event -> Maybe Int
+eventButton (Event {..})
+  | (eType `elem` [XI_ButtonPress, XI_ButtonRelease,
+                   XI_KeyPress, XI_KeyRelease]) =
+        case eSpecific of
+          GPointerEvent {peDetail = n} -> Just n
+          _                            -> Nothing
+  | otherwise = Nothing
+
+-- | Shortcut to get event window.
+-- Returns Nothing if this is not pointer-related event
+eventWindow :: Event -> Maybe X11.Window
+eventWindow e =
+  case eSpecific e of
+    GPointerEvent {peEvent = w} -> Just w
+    _                           -> Nothing
+
+-- | Shortcut to get keymask from event
+eventKeyMask :: Event -> Maybe X11.KeyMask
+eventKeyMask (Event {eSpecific = GPointerEvent {peSpecific = e}}) =
+  Just $ fromIntegral $ msBase $ peMods e
+eventKeyMask _ = Nothing
+

@@ -25,12 +25,14 @@ genericEvent = 35
 
 type Opcode = CInt
 
+-- | Type for X11 cookie events
 data EventCookie = EventCookie {
-  ecEvent     :: E.Event,
-  ecExtension :: CInt,
-  ecType      :: EventType,
-  ecCookie    :: CUInt,
-  ecData      :: Event }
+    ecEvent     :: E.Event   -- ^ Usual X11 event
+  , ecExtension :: Opcode    -- ^ X11 extension identifier 
+  , ecType      :: EventType -- ^ Event type
+  , ecCookie    :: CUInt
+  , ecData      :: Event     -- ^ XInput event
+  }
   deriving (Eq)
 
 instance Show EventCookie where
@@ -38,13 +40,15 @@ instance Show EventCookie where
                   (show $ ecType e)
                   (show $ ecData e)
 
+-- | XInput events
 data Event = Event {
-  eSendEvent :: Bool,
-  eDisplay   :: X11.Display,
-  eExtension :: Opcode,
-  eType      :: EventType,
-  eDeviceId  :: DeviceID,
-  eSpecific  :: EventSpecific }
+    eSendEvent :: Bool          -- ^ True if event was sent by SendEvent
+  , eDisplay   :: X11.Display   -- 
+  , eExtension :: Opcode        -- ^ X11 extension identifier
+  , eType      :: EventType     -- ^ Event type
+  , eDeviceId  :: DeviceID      -- ^ Device identifier
+  , eSpecific  :: EventSpecific -- ^ Event-specific data
+  }
   deriving (Eq)
 
 instance Show Event where
@@ -52,42 +56,28 @@ instance Show Event where
                   (show $ eDeviceId e)
                   (show $ eSpecific e)
 
+-- | Event-specific info
 data EventSpecific =
     GPointerEvent {
-      peSourceId  :: CInt,
-      peDetail    :: Int,
-      peRoot      :: X11.Window,
-      peEvent     :: X11.Window,
-      peChild     :: X11.Window,
-      peRootX     :: CDouble,
-      peRootY     :: CDouble,
-      peEventX    :: CDouble,
-      peEventY    :: CDouble,
-      peSpecific  :: PointerEvent }
+      peSourceId  :: CInt         -- ^ Source device identifier
+    , peDetail    :: Int          -- ^ Detailed info; for example, button number or keycode
+    , peRoot      :: X11.Window   -- ^ Root window
+    , peEvent     :: X11.Window   -- ^ Event window
+    , peChild     :: X11.Window   -- ^ Child window
+    , peRootX     :: CDouble
+    , peRootY     :: CDouble
+    , peEventX    :: CDouble
+    , peEventY    :: CDouble
+    , peSpecific  :: PointerEvent -- ^ Event-specific
+    }                             -- ^ General constructor for all pointer-related events
   | PropertyEvent {
       peProperty :: X11.Atom,
       peWhat :: CInt }
   | DeviceChangedEvent {
       dceReason :: CInt,
-      dceNumClasses :: Int,
       dceClasses :: [GDeviceClass] }
   | UnsupportedEvent CInt
   deriving (Eq)
-
-eventButton :: Event -> Maybe Int
-eventButton (Event {..})
-  | (eType `elem` [XI_ButtonPress, XI_ButtonRelease,
-                   XI_KeyPress, XI_KeyRelease]) =
-        case eSpecific of
-          GPointerEvent {peDetail = n} -> Just n
-          _                            -> Nothing
-  | otherwise = Nothing
-
-eventWindow :: Event -> Maybe X11.Window
-eventWindow e =
-  case eSpecific e of
-    GPointerEvent {peEvent = w} -> Just w
-    _                           -> Nothing
 
 instance Show EventSpecific where
   show (GPointerEvent {..}) =
@@ -110,28 +100,27 @@ instance Show EventSpecific where
 
   show (UnsupportedEvent e) = "unsupported event #" ++ show e
 
+-- | All pointer-related event details
 data PointerEvent =
     EnterLeaveEvent {
-      eeMode :: CInt,
-      eeFocus :: Bool,
-      eeSameScreen :: Bool,
-      peButtons :: ButtonState,
-      peMods :: ModifierState,
-      peGroup :: GroupState }
+      eeMode       :: CInt
+    , eeFocus      :: Bool
+    , eeSameScreen :: Bool
+    , peButtons    :: ButtonState
+    , peMods       :: ModifierState
+    , peGroup      :: GroupState
+    }                               -- ^ XIEnterEvent or XILeaveEvent
   | DeviceEvent {
-      deType :: EventType,
-      deFlags :: CInt,
-      peButtons :: ButtonState,
-      deValuators :: ValuatorState,
-      peMods :: ModifierState,
-      peGroup :: GroupState }
+      deType :: EventType
+    , deFlags :: CInt
+    , peButtons :: ButtonState
+    , deValuators :: ValuatorState
+    , peMods :: ModifierState
+    , peGroup :: GroupState
+    }                               -- ^ Device event, such as button press
   deriving (Eq, Show)
 
-eventKeyMask :: Event -> Maybe X11.KeyMask
-eventKeyMask (Event {eSpecific = GPointerEvent {peSpecific = e}}) =
-  Just $ fromIntegral $ msBase $ peMods e
-eventKeyMask _ = Nothing
-
+-- | XInput event type
 data EventType =
     XI_DeviceChanged      --         1
   | XI_KeyPress           --         2
@@ -157,29 +146,6 @@ eventType2int et = fromIntegral $ fromEnum et + 1
 
 int2eventType :: Integral a => a -> EventType
 int2eventType n = toEnum (fromIntegral n - 1)
-
-data EventMaskFlag =
-    XI_DeviceChangedMask    --       (1 << XI_DeviceChanged)
-  | XI_KeyPressMask         --       (1 << XI_KeyPress)
-  | XI_KeyReleaseMask       --       (1 << XI_KeyRelease)
-  | XI_ButtonPressMask      --       (1 << XI_ButtonPress)
-  | XI_ButtonReleaseMask    --       (1 << XI_ButtonRelease)
-  | XI_MotionMask           --       (1 << XI_Motion)
-  | XI_EnterMask            --       (1 << XI_Enter)
-  | XI_LeaveMask            --       (1 << XI_Leave)
-  | XI_FocusInMask          --       (1 << XI_FocusIn)
-  | XI_FocusOutMask         --       (1 << XI_FocusOut)
-  | XI_HierarchyChangedMask --       (1 << XI_HierarchyChanged)
-  | XI_PropertyEventMask    --       (1 << XI_PropertyEvent)
-  | XI_RawKeyPressMask      --       (1 << XI_RawKeyPress)
-  | XI_RawKeyReleaseMask    --       (1 << XI_RawKeyRelease)
-  | XI_RawButtonPressMask   --       (1 << XI_RawButtonPress)
-  | XI_RawButtonReleaseMask --       (1 << XI_RawButtonRelease)
-  | XI_RawMotionMask        --       (1 << XI_RawMotion)
-  deriving (Eq, Show, Ord, Enum)
-
-eventMask2int :: EventMaskFlag -> CInt
-eventMask2int em = 1 `shiftL` (fromEnum em + 1)
 
 data EventMask = EventMask {
     emDeviceID :: DeviceID,
@@ -208,14 +174,15 @@ int2deviceType n = toEnum (fromIntegral n - 1)
 
 type DeviceID = CInt
 
+-- | Device info
 data DeviceInfo = DeviceInfo {
-  diID :: DeviceID,
-  diName :: String,
-  diUse :: DeviceType,
-  diAttachment :: DeviceID,
-  diEnabled :: Bool,
-  diNumClasses :: Int,
-  diClasses :: [GDeviceClass]}
+    diID         :: DeviceID       -- ^ Device identifier
+  , diName       :: String         -- ^ Device name
+  , diUse        :: DeviceType     -- ^ Device type: master or slave
+  , diAttachment :: DeviceID       -- ^ Identifier of device this device is attached to
+  , diEnabled    :: Bool           -- 
+  , diClasses    :: [GDeviceClass] -- ^ Device classes
+  }
   deriving (Eq)
 
 instance Show DeviceInfo where
@@ -228,16 +195,19 @@ instance Show DeviceInfo where
 
 {# pointer *XIDeviceInfo as DeviceInfoPtr -> DeviceInfo #}
 
+-- | Type of device class
 data DeviceClassType =
     XIKeyClass
   | XIButtonClass
   | XIValuatorClass
   deriving (Eq, Show, Ord, Enum)
 
+-- | Any device class
 data GDeviceClass = GDeviceClass {
-  dcType :: DeviceClassType,
-  dcSourceId :: Int,
-  dcSpecific :: DeviceClass }
+    dcType     :: DeviceClassType
+  , dcSourceId :: Int
+  , dcSpecific :: DeviceClass
+  }
   deriving (Eq)
 
 instance Show GDeviceClass where
@@ -254,10 +224,11 @@ data ButtonState = ButtonState {
 {# pointer *XIButtonState as ButtonStatePtr -> ButtonState #}
 
 data ModifierState = ModifierState {
-  msBase :: Int,
-  msLatched :: Int,
-  msLocked :: Int,
-  msEffective :: Int }
+    msBase      :: Int
+  , msLatched   :: Int
+  , msLocked    :: Int
+  , msEffective :: Int
+  }
   deriving (Eq, Show)
 
 {# pointer *XIModifierState as ModifierStatePtr -> ModifierState #}
@@ -268,22 +239,26 @@ type ValuatorState = M.Map Int Double
 
 {# pointer *XIValuatorState as ValuatorStatePtr -> ValuatorState #}
 
+-- | Device class specific info
 data DeviceClass =
     ButtonClass {
-      dcNumButtons :: Int,
-      dcLabels :: [X11.Atom],
-      dcState :: ButtonState }
+      dcNumButtons :: Int
+    , dcLabels     :: [X11.Atom]
+    , dcState      :: ButtonState
+    }
   | KeyClass {
-      dcNumKeycodes :: Int,
-      dcKeycodes :: [Int] }
+      dcNumKeycodes :: Int
+    , dcKeycodes    :: [Int]
+    }
   | ValuatorClass {
-      dcNumber :: Int,
-      dcLabel :: X11.Atom,
-      dcMin :: Double,
-      dcMax :: Double,
-      dcValue :: Double,
-      dcResolution :: Int,
-      dcMode :: Int }
+      dcNumber     :: Int
+    , dcLabel      :: X11.Atom
+    , dcMin        :: Double
+    , dcMax        :: Double
+    , dcValue      :: Double
+    , dcResolution :: Int
+    , dcMode       :: Int
+    }
   deriving (Eq)
 
 instance Show DeviceClass where

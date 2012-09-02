@@ -1,5 +1,10 @@
 
-module Graphics.X11.XInput.Devices where
+module Graphics.X11.XInput.Devices
+  (Device (..),
+   DevicesMap,
+   buildDevicesMap,
+   showDevicesMap
+  ) where
 
 import qualified Data.Map as M
 import Text.Printf
