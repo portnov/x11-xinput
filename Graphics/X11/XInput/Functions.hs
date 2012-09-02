@@ -5,7 +5,8 @@ module Graphics.X11.XInput.Functions
    handleXCookie,
    eventButton,
    eventWindow,
-   eventKeyMask
+   eventKeyMask,
+   eventMousePos
   ) where
 
 import Control.Applicative
@@ -85,6 +86,17 @@ eventButton (Event {..})
         case eSpecific of
           GPointerEvent {peDetail = n} -> Just n
           _                            -> Nothing
+  | otherwise = Nothing
+
+-- | Shortcut to get pointer position from event
+eventMousePos :: Event -> Maybe (X11.Position, X11.Position)
+eventMousePos (Event {..})
+  | (eType `elem` [XI_ButtonPress, XI_ButtonRelease,
+                   XI_KeyPress, XI_KeyRelease,
+                   XI_Enter, XI_Leave]) =
+        let x = round (peRootX eSpecific)
+            y = round (peRootY eSpecific)
+        in  Just (x, y)
   | otherwise = Nothing
 
 -- | Shortcut to get event window.
