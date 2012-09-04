@@ -152,6 +152,29 @@ data EventMask = EventMask {
     emMask :: [Int] }
   deriving (Eq, Show)
 
+instance Storable EventMask where
+  sizeOf (EventMask dev mask) =
+      let w = sizeOf (0 :: CInt)
+      in (length mask + 2) * w
+
+  alignment _ = alignment (0 :: CInt)
+
+  peek ptr = do
+      dev <- {# get XIEventMask->deviceid #} ptr
+      len <- {# get XIEventMask->mask_len #} ptr
+      maskPtr <- {# get XIEventMask->mask #} ptr
+      mask <- peekArray (fromIntegral len) maskPtr
+      return $ EventMask dev (map fromIntegral mask)
+
+  poke ptr (EventMask dev mask) = do
+      {# set XIEventMask->deviceid #} ptr dev
+      let len = length mask
+          w = sizeOf (0 :: CInt)
+          p = sizeOf (nullPtr :: Ptr CUChar)
+          maskPtr = castPtr (ptr `plusPtr` (w*2 + p)) :: Ptr CInt
+      {# set XIEventMask->mask_len #} ptr (fromIntegral len)
+      pokeArray maskPtr (map fromIntegral mask)
+
 {# pointer *XIEventMask as EventMaskPtr -> EventMask #}
 
 {# pointer *XGenericEventCookie as EventCookiePtr -> EventCookie #}
@@ -273,6 +296,25 @@ data SelectDevices =
   | OneDevice DeviceID
   deriving (Eq, Show, Ord)
 
+data GrabModifiers = GrabModifiers {
+  gModifiers :: Int,
+  gStatus :: Int }
+  deriving (Eq, Show)
+
+instance Storable GrabModifiers where
+  sizeOf x = 2 * sizeOf (0 :: CInt)
+  alignment _ = alignment (0 :: CInt)
+
+  peek ptr = GrabModifiers
+      <$> (fromIntegral <$> {# get XIGrabModifiers->modifiers #} ptr)
+      <*> (fromIntegral <$> {# get XIGrabModifiers->status #} ptr)
+  
+  poke ptr (GrabModifiers mods status) = do
+    {# set XIGrabModifiers->modifiers #} ptr (fromIntegral mods)
+    {# set XIGrabModifiers->status #} ptr (fromIntegral status)
+
+{# pointer *XIGrabModifiers as GrabModifiersPtr -> GrabModifiers #}
+
 selectDevices :: SelectDevices -> CInt
 selectDevices XIAllDevices = 0
 selectDevices XIAllMasterDevices = 1
@@ -286,6 +328,9 @@ display2ptr (X11.Display ptr) = castPtr ptr
 
 toBool 0 = False
 toBool 1 = True
+
+fromBool True = 1
+fromBool False = 0
 
 -- | XInput initialization result
 data XInputInitResult =
