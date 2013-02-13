@@ -3,7 +3,8 @@ module Graphics.X11.XInput.Devices
   (Device (..),
    DevicesMap,
    buildDevicesMap,
-   showDevicesMap
+   showDevicesMap,
+   isMasterDevice
   ) where
 
 import qualified Data.Map as M
@@ -54,3 +55,8 @@ showDevicesMap m = unlines $ map go $ M.assocs m
     one dev = printf " +-- #%s: %s"
                      (show $ diID dev)
                      (show dev)
+
+isMasterDevice :: DevicesMap -> DeviceID -> Maybe Bool
+isMasterDevice dmap i = do
+  dev <- M.lookup i dmap
+  return $ diID (masterDevice dev) == i

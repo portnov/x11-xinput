@@ -161,15 +161,15 @@ grabButton :: X11.Display
            -> X11.GrabMode
            -> X11.GrabMode
            -> Bool
-           -> EventMask
+           -> [EventType]
            -> [GrabModifiers]
            -> IO [GrabModifiers]
 grabButton dpy dev btn win cursor
            grab_mode paired_mode owner_events
-           mask mods = do
+           events mods = do
   let nMods = length mods
   allocaArray nMods $ \modsPtr ->
-    pokeAlloca mask $ \maskPtr -> do
+    withEventMask dpy win events $ \maskPtr -> do
       pokeArray modsPtr mods
       n <- xiGrabButton dpy (selectDevices dev)
                         (fromIntegral btn) win cursor
@@ -201,15 +201,15 @@ grabKeycode  :: X11.Display
              -> X11.GrabMode
              -> X11.GrabMode
              -> Bool
-             -> EventMask
+             -> [EventType]
              -> [GrabModifiers]
              -> IO [GrabModifiers]
 grabKeycode dpy dev btn win
             grab_mode paired_mode owner_events
-            mask mods = do
+            events mods = do
   let nMods = length mods
   allocaArray nMods $ \modsPtr ->
-    pokeAlloca mask $ \maskPtr -> do
+    withEventMask dpy win events $ \maskPtr -> do
       pokeArray modsPtr mods
       n <- xiGrabKeycode dpy (selectDevices dev)
                          (fromIntegral btn) win
@@ -248,13 +248,22 @@ setEventMask :: X11.Display
              -> X11.Window
              -> [EventType] -- ^ List of events to listen
              -> IO ()
-setEventMask dpy win list = do
+setEventMask dpy win list =
+  withEventMask dpy win list $ \maskptr ->
+      selectEvents dpy win maskptr 1
+
+withEventMask :: X11.Display
+              -> X11.Window
+              -> [EventType]
+              -> (EventMaskPtr -> IO a)
+              -> IO a
+withEventMask dpy win list callback = do
   let len = (eventType2int XI_RawMotion + 7) `shiftR` 3
   allocaBytes (fromIntegral len) $ \(maskptr :: EventMaskPtr) -> do
-    {# set XIEventMask.deviceid #} maskptr 1
+    {# set XIEventMask.deviceid #} maskptr 0
     {# set XIEventMask.mask_len #} maskptr len
     allocaArray (fromIntegral len) $ \mask -> do
       forM list $ addMask mask
       {# set XIEventMask.mask #}     maskptr mask
-      selectEvents dpy win maskptr 1
+      callback maskptr
 

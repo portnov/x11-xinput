@@ -43,9 +43,9 @@ parseMask list =
 
 peekMask :: (Ptr a -> IO CInt) -> (Ptr a -> IO (Ptr CUChar)) -> Ptr a -> IO [Int]
 peekMask getLength getMask ptr = do
-  len <- getLength ptr
-  maskPtr <- getMask ptr
-  mask <- peekArray (fromIntegral len) maskPtr
+  len <- trace "maskLen" $ getLength ptr
+  maskPtr <- trace "maskPtr" $ getMask ptr
+  mask <- trace "mask" $ peekArray (fromIntegral len) maskPtr
   return $ parseMask mask
 
 packMask :: [Int] -> X11.KeyMask
@@ -131,6 +131,7 @@ instance Struct EventCookie where
     cookie <- {# get XGenericEventCookie->cookie #} xev
     dptr  <- {# get XGenericEventCookie->data #}   xev
     cdata <- peekStruct (castPtr dptr)
+
     return $ EventCookie {
                ecEvent  = ev,
                ecExtension = ext,
@@ -175,7 +176,14 @@ peekEventSpecific t e = GPointerEvent
   <*> {# get XIDeviceEvent->root_y #}  e
   <*> {# get XIDeviceEvent->event_x #} e
   <*> {# get XIDeviceEvent->event_y #} e
-  <*> peekPointerEvent t e
+  <*> trace "pointerEvent" (peekPointerEvent t e)
+
+trace :: Show a => String -> IO a -> IO a
+trace _ x = x
+-- trace prefix action = do
+--   result <- action
+--   putStrLn $ prefix ++ ": " ++ show result
+--   return result
 
 peekPointerEvent XI_Enter e = EnterLeaveEvent
   <$> {# get XIEnterEvent->mode #} e
@@ -198,30 +206,45 @@ peekPointerEvent XI_Enter e = EnterLeaveEvent
 
 peekPointerEvent XI_Leave e = peekPointerEvent XI_Enter e
 
+peekPointerEvent XI_RawKeyPress e = peekRawEvent XI_RawKeyPress e
+
+peekPointerEvent XI_RawKeyRelease e = peekRawEvent XI_RawKeyRelease e
+
 peekPointerEvent t e = DeviceEvent
-  <$> return t
-  <*> {# get XIDeviceEvent->flags #} e
-  <*> (ButtonState <$>
+  <$> trace "event type" (return t)
+  <*> trace "flags" ({# get XIDeviceEvent->flags #} e)
+  <*> trace "buttons" (ButtonState <$>
         (peekMask ({# get XIDeviceEvent->buttons.mask_len #})
                   ({# get XIDeviceEvent->buttons.mask #})
                   e ) )
-  <*> (do
-        mask <- peekMask ({# get XIDeviceEvent->valuators.mask_len #})
+  <*> trace "valuators" (do
+        mask <- trace "mask" $ peekMask ({# get XIDeviceEvent->valuators.mask_len #})
                          ({# get XIDeviceEvent->valuators.mask #})
                          e
-        valuesPtr <- {# get XIDeviceEvent->valuators.values #} e
-        values <- peekArray (length mask) valuesPtr :: IO [CDouble]
+        valuesPtr <- trace "valuesPtr" $ {# get XIDeviceEvent->valuators.values #} e
+        values <- trace "values" $ peekArray (length mask) valuesPtr :: IO [CDouble]
         let values' = map realToFrac values :: [Double]
         return $ M.fromList $ zip mask values' )
-  <*> (ModifierState
+  <*> trace "mods" (ModifierState
         <$> (fromIntegral <$> {# get XIDeviceEvent->mods.base #}      e)
         <*> (fromIntegral <$> {# get XIDeviceEvent->mods.latched #}   e)
         <*> (fromIntegral <$> {# get XIDeviceEvent->mods.locked #}    e)
         <*> (fromIntegral <$> {# get XIDeviceEvent->mods.effective #} e))
-  <*> (ModifierState
+  <*> trace "group" (ModifierState
         <$> (fromIntegral <$> {# get XIDeviceEvent->group.base #}      e)
         <*> (fromIntegral <$> {# get XIDeviceEvent->group.latched #}   e)
         <*> (fromIntegral <$> {# get XIDeviceEvent->group.locked #}    e)
         <*> (fromIntegral <$> {# get XIDeviceEvent->group.effective #} e))
 
 
+peekRawEvent t e = RawEvent
+  <$> trace "event type" (return t)
+  <*> trace "flags" ({# get XIRawEvent->flags #} e)
+  <*> trace "valuators" (do
+        mask <- trace "mask" $ peekMask ({# get XIRawEvent->valuators.mask_len #})
+                         ({# get XIRawEvent->valuators.mask #})
+                         e
+        valuesPtr <- trace "valuesPtr" $ {# get XIRawEvent->valuators.values #} e
+        values <- trace "values" $ peekArray (length mask) valuesPtr :: IO [CDouble]
+        let values' = map realToFrac values :: [Double]
+        return $ M.fromList $ zip mask values' )

@@ -81,11 +81,13 @@ data EventSpecific =
 
 instance Show EventSpecific where
   show (GPointerEvent {..}) =
-      printf "from %s [%s], at (%.2f, %.2f): %s"
+      printf "from %s [%s], at (%.2f, %.2f): window %s, child %s: %s"
              (show peSourceId)
              (show peDetail)
              (realToFrac peRootX :: Double)
              (realToFrac peRootY :: Double)
+             (show peEvent)
+             (show peChild)
              (show peSpecific)
 
   show (PropertyEvent {..}) =
@@ -110,6 +112,12 @@ data PointerEvent =
     , peMods       :: ModifierState
     , peGroup      :: GroupState
     }                               -- ^ XIEnterEvent or XILeaveEvent
+  | RawEvent {
+      reType :: EventType
+    , reFlags :: CInt
+    , reValuators :: ValuatorState
+    -- raw_values
+    }
   | DeviceEvent {
       deType :: EventType
     , deFlags :: CInt
@@ -300,6 +308,12 @@ data GrabModifiers = GrabModifiers {
   gModifiers :: Int,
   gStatus :: Int }
   deriving (Eq, Show)
+
+xiAnyModifier :: GrabModifiers
+xiAnyModifier = GrabModifiers 1 0
+
+keymask2grabModifiers :: X11.KeyMask -> GrabModifiers
+keymask2grabModifiers mask = GrabModifiers (fromIntegral mask) 0
 
 instance Storable GrabModifiers where
   sizeOf x = 2 * sizeOf (0 :: CInt)

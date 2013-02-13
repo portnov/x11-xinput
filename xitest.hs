@@ -3,6 +3,7 @@ import Control.Applicative
 import Control.Monad
 import Control.Concurrent (threadDelay)
 import Data.Bits
+import System.Environment
 import Graphics.X11
 import Graphics.X11.XInput
 
@@ -13,7 +14,12 @@ withDisplay str action = do
   closeDisplay dpy
 
 main = do
-  withDisplay ":0" $ \dpy -> do
+  args <- getArgs
+  let dpyStr = case args of
+                [] -> ""
+                [s] -> s
+                _ -> error "Synopsis: xitest DISPLAY"
+  withDisplay dpyStr $ \dpy -> do
     InitOK xi_opcode <- xinputInit dpy
     devices <- buildDevicesMap <$> queryDevice dpy XIAllDevices 
     putStrLn (showDevicesMap devices)
