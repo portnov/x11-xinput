@@ -13,6 +13,8 @@ category:            Graphics
 build-type:          Simple
 cabal-version:       >=1.8
 
+extra-source-files: xitest.hs
+
 library
   exposed-modules:     Graphics.X11.XInput,
                        Graphics.X11.XInput.Parser,
@@ -27,3 +29,7 @@ library
                        X11 >= 1.6
   build-tools:         c2hs
   extra-libraries:     "Xi"
+
+source-repository head
+  type: git
+  location: git://redmine.iportnov.ru/x11-xinput.git
