@@ -1,10 +1,12 @@
 
 module Graphics.X11.XInput.Devices
   (Device (..),
-   DevicesMap,
+   DevicesMap (..),
    buildDevicesMap,
    showDevicesMap,
-   isMasterDevice
+   isMasterDevice,
+   deviceById, masterDeviceById,
+   deviceByName
   ) where
 
 import qualified Data.Map as M
@@ -17,10 +19,18 @@ data Device = Device {
   slaveDevices :: [DeviceInfo] }
   deriving (Eq, Show)
 
-type DevicesMap = M.Map DeviceID Device
+data DevicesMap = DevicesMap {
+    masterDevices :: M.Map DeviceID Device
+  , allDevices    :: M.Map DeviceID DeviceInfo
+  , byName        :: M.Map String DeviceInfo }
+  deriving (Eq, Show)
 
 buildDevicesMap :: [DeviceInfo] -> DevicesMap
-buildDevicesMap list = M.fromList $ build [] list
+buildDevicesMap list = DevicesMap {
+                           masterDevices = M.fromList $ build [] list
+                         , allDevices    = M.fromList [(diID   di, di) | di <- list]
+                         , byName        = M.fromList [(diName di, di) | di <- list]
+                         }
   where
     build :: [(DeviceID, Device)] -> [DeviceInfo] -> [(DeviceID, Device)]
     build done [] = done
@@ -46,7 +56,7 @@ buildDevicesMap list = M.fromList $ build [] list
         master {slaveDevices = slave: slaveDevices master}
 
 showDevicesMap :: DevicesMap -> String
-showDevicesMap m = unlines $ map go $ M.assocs m
+showDevicesMap m = unlines $ map go $ M.assocs $ masterDevices m
   where
     go (devID, dev) =
            (printf "#%s: %s\n" (show devID) (show $ masterDevice dev))
@@ -56,7 +66,16 @@ showDevicesMap m = unlines $ map go $ M.assocs m
                      (show $ diID dev)
                      (show dev)
 
-isMasterDevice :: DevicesMap -> DeviceID -> Maybe Bool
-isMasterDevice dmap i = do
-  dev <- M.lookup i dmap
-  return $ diID (masterDevice dev) == i
+isMasterDevice :: DeviceID -> DevicesMap -> Bool
+isMasterDevice i dmap = i `M.member` masterDevices dmap
+
+deviceById :: DeviceID -> DevicesMap -> Maybe DeviceInfo
+deviceById i dmap = M.lookup i (allDevices dmap)
+
+masterDeviceById :: DeviceID -> DevicesMap -> Maybe Device
+masterDeviceById i dmap = M.lookup i (masterDevices dmap)
+
+deviceByName :: String -> DevicesMap -> Maybe DeviceInfo
+deviceByName name dmap = M.lookup name (byName dmap)
+
+
