@@ -3,6 +3,7 @@ version:             0.1.0.0
 synopsis:            Haskell FFI bindings for X11 XInput library (-lXi)
 description:         Haskell FFI bindings for X11 XInput library (-lXi).
                      Only XInput version 2.0 is supported.
+                     See XInput manual pages and XInput2.h, XI2.h for more documentation.
 homepage:            http://redmine.iportnov.ru/projects/x11-xinput
 license:             BSD3
 license-file:        LICENSE

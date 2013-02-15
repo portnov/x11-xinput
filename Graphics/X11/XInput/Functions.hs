@@ -1,4 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
+{-| This module contains some higher-level functions,
+ - wrapping XInput calls. #-}
 module Graphics.X11.XInput.Functions
   (xinputInit,
    xinputCheckVersion,

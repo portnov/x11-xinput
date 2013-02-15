@@ -1,4 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
+{-| This module contains declarations of used XInput event structures.
+See XInput2.h for more info.
+-}
 module Graphics.X11.XInput.Types where
 
 #include <X11/Xlib.h>

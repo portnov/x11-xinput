@@ -1,15 +1,21 @@
 {-# LANGUAGE ForeignFunctionInterface, ScopedTypeVariables #-}
+{-|
+This module contains FFI imports and thin wrappers for them.
+-}
 module Graphics.X11.XInput.Foreign
-  (queryDevice,
-   setEventMask,
-   getEventData,
-   freeEventData,
-   xiQueryDevice,
-   xQueryExtension,
+  (-- * XInput initialization
    xinputVersion,
+   setEventMask,
+   -- * Wrappers for XInput calls
+   queryDevice,
    grabDevice, ungrabDevice,
    grabButton, ungrabButton,
-   grabKeycode, ungrabKeycode
+   grabKeycode, ungrabKeycode,
+   -- * FFI imports
+   xiQueryDevice,
+   xQueryExtension,
+   getEventData,
+   freeEventData
   ) where
 
 #include <X11/Xlib.h>

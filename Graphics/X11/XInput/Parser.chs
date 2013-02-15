@@ -1,5 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
-
+{-| Functions of this module perform parsing of XInput events structures. -}
 module Graphics.X11.XInput.Parser where
 
 #include <X11/Xlib.h>
