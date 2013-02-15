@@ -67,13 +67,13 @@ handleXCookie :: (MonadIO m) => X11.Display
                              -> (EventCookie -> m a) -- ^ Handler for X11 cookie event
                              -> m a
 handleXCookie dpy xi_opcode xev evHandler cookieHandler = do
-  liftIO $ putStrLn "handling XCookie"
+--   liftIO $ putStrLn "handling XCookie"
   evtype <- liftIO $ get_event_type xev
   ext    <- liftIO $ get_event_extension xev
   hasCookie <- liftIO $ getEventData dpy (castPtr xev)
   result <- if (evtype == genericEvent) && (ext == xi_opcode) && hasCookie
               then do
-                   liftIO $ putStrLn "XInput event"
+--                    liftIO $ putStrLn "XInput event"
                    cookieHandler =<< (liftIO $ getXGenericEventCookie xev)
               else evHandler =<< (liftIO $ E.getEvent xev)
   liftIO $ freeEventData dpy (castPtr xev)
